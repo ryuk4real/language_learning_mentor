@@ -19,3 +19,4 @@ htmlcov/
 # IDEs/editors
 .vscode/
 .idea/
+config/
