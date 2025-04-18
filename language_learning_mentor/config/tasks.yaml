@@ -1,0 +1,11 @@
+level_task:
+  description: "Valuta il livello iniziale della lingua {{ language }} dell'utente {{ user_name }}."
+  expected_output: "Un report sul livello dell’utente (principiante, intermedio, avanzato)."
+
+tip_task:
+  description: "Invia un consiglio linguistico e un fatto culturale quotidiano all'utente {{ user_name }}."
+  expected_output: "Un consiglio utile e una curiosità culturale per oggi."
+
+quiz_task:
+  description: "Crea e valuta un quiz linguistico per {{ user_name }} in lingua {{ language }}."
+  expected_output: "Punteggio aggiornato dell’utente e feedback sulle risposte."

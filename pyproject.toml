@@ -6,7 +6,11 @@ authors = ["ryuk4real <84407165+ryuk4real@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.11,<3.13"
+pillow = "^11.2.1"
+pyyaml = "^6.0.2"
+crewai = "^0.114.0"
+langchain = "^0.3.23"
 
 
 [build-system]
