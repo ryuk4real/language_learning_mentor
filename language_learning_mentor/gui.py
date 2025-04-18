@@ -1,428 +1,449 @@
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
+from tkinter import messagebox, scrolledtext, font as tkFont
 from PIL import Image, ImageTk
-from crew import LanguageMentor
-from crewai import Process  # Aggiungiamo questo import mancante
+from crewai import Task
+from crew import LanguageMentor 
+from crewai import Process, Task
+from tools.calculator import QuizCalculator
 import threading
 import json
 import re
+import os
+from pathlib import Path
 
-# Percorsi bandiere
-FLAGS = {
-    'English': 'flags/uk.png',
-    'Japanese': 'flags/japan.png',
-    'Spanish': 'flags/spain.png',
-    'Klingon': 'flags/klingon.png'
+# --- Configuration ---
+
+CONFIG_DIR = Path("config") # Directory to store user config files
+CONFIG_DIR.mkdir(exist_ok=True) # Create config directory if it doesn't exist
+
+# Define theme colors
+LIGHT_THEME = {
+    "bg": "#F0F0F0",
+    "fg": "#000000",
+    "button_bg": "#D0D0D0",
+    "button_fg": "#000000",
+    "entry_bg": "#FFFFFF",
+    "entry_fg": "#000000",
+    "text_bg": "#FFFFFF",
+    "text_fg": "#000000",
+    "accent": "#4CAF50", # Example accent color
+    "accent_fg": "#FFFFFF"
 }
 
+DARK_THEME = {
+    "bg": "#2E2E2E",
+    "fg": "#FFFFFF",
+    "button_bg": "#505050",
+    "button_fg": "#FFFFFF",
+    "entry_bg": "#3E3E3E",
+    "entry_fg": "#FFFFFF",
+    "text_bg": "#3E3E3E",
+    "text_fg": "#FFFFFF",
+    "accent": "#81C784", # Lighter accent for dark theme
+    "accent_fg": "#000000"
+}
+
+# --- OS-Independent Flag Paths ---
+BASE_DIR = Path(__file__).resolve().parent
+FLAGS_DIR = BASE_DIR / "flags"
+
+FLAGS = {
+    'English': FLAGS_DIR / 'uk.png',
+    'Japanese': FLAGS_DIR / 'japan.png',
+    'Spanish': FLAGS_DIR / 'spain.png',
+}
+
+# --- Helper Functions ---
+
+def get_config_path(username):
+    """Generates the path for a user's config file."""
+    # Sanitize username slightly for filename (replace spaces, common unsafe chars)
+    safe_filename = re.sub(r'[\\/*?:"<>| ]', '_', username.lower())
+    if not safe_filename:
+        safe_filename = "default_user" # Fallback for empty/unsafe names
+    return CONFIG_DIR / f"{safe_filename}.json"
+
+def load_user_config(username):
+    """Loads user configuration from JSON file."""
+    config_path = get_config_path(username)
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None # User does not exist
+    except json.JSONDecodeError:
+        print(f"Warning: Corrupted config file for {username}. Using defaults.")
+        return None # Treat as new user if file is corrupt
+
+def save_user_config(username, data):
+    """Saves user configuration to JSON file."""
+    config_path = get_config_path(username)
+    try:
+        with open(config_path, 'w') as f:
+            json.dump(data, f, indent=4)
+    except IOError as e:
+        messagebox.showerror("Save Error", f"Could not save configuration for {username}:\n{e}")
+
+def apply_theme(widget, theme):
+    """Recursively applies theme colors to a widget and its children."""
+    try:
+        widget.config(bg=theme["bg"])
+    except tk.TclError: pass # Ignore widgets that don't support 'bg'
+
+    # Apply specific colors based on widget type
+    widget_type = widget.winfo_class()
+
+    if widget_type in ('Label', 'TLabel', 'Message'):
+        try: widget.config(fg=theme["fg"], bg=theme["bg"])
+        except tk.TclError: pass
+    elif widget_type in ('Button', 'TButton'):
+        try: widget.config(bg=theme["button_bg"], fg=theme["button_fg"], activebackground=theme["accent"], activeforeground=theme["accent_fg"])
+        except tk.TclError: pass
+    elif widget_type in ('Entry', 'TEntry'):
+        try: widget.config(bg=theme["entry_bg"], fg=theme["entry_fg"], insertbackground=theme["fg"])
+        except tk.TclError: pass
+    elif widget_type in ('Text', 'ScrolledText'):
+         try: widget.config(bg=theme["text_bg"], fg=theme["text_fg"], insertbackground=theme["fg"])
+         except tk.TclError: pass
+    elif widget_type in ('Frame', 'TFrame', 'Labelframe', 'TLabelframe'):
+         try: widget.config(bg=theme["bg"])
+         except tk.TclError: pass
+
+    # Recursively apply to children
+    for child in widget.winfo_children():
+        apply_theme(child, theme)
+
+# --- Main Application Class ---
 class LanguageMentorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Language Mentor")
-        self.root.geometry("500x700")
+        self.root.geometry("600x400") # Slightly larger for more content
+
+        # User Data - initialized empty or loaded from config
         self.username = None
         self.language = None
-        self.progress = 0
-        self.level = "Non rilevato"
-        
-        # Risultati del quiz
-        self.quiz_results = []
-        
+        self.progress = 0 # Experience points (EXP)
+        self.level = "Beginner" # Default level for new users
+        self.current_theme = 'light' # Default theme
+        self.theme_colors = LIGHT_THEME
+
+        # Font setup
+        self.default_font = tkFont.nametofont("TkDefaultFont")
+        self.default_font.configure(size=10)
+        self.header_font = tkFont.Font(family="Arial", size=16, weight="bold")
+        self.label_font = tkFont.Font(family="Arial", size=11)
+        self.button_font = tkFont.Font(family="Arial", size=10, weight="bold")
+
         self.show_login_screen()
 
-    # ───────────────────────────────────────────────────────────── #
-    # LOGIN / SELEZIONE LINGUA
-    def show_login_screen(self):
+    # --- Config and Theme Handling ---
+    def load_config(self, username):
+        """Loads user data from config file and sets instance variables."""
+        config_data = load_user_config(username)
+        if config_data:
+            self.username = username
+            self.language = config_data.get('language', None)
+            self.progress = config_data.get('progress', 0)
+            self.level = config_data.get('level', 'Beginner')
+            self.current_theme = config_data.get('theme', 'light')
+            print(f"Loaded config for {username}: Lang={self.language}, Theme={self.current_theme}, Level={self.level}")
+            return True
+        return False
+
+    def save_config(self):
+        """Saves current user data to their config file."""
+        if not self.username:
+            print("Warning: Cannot save config, no username set.")
+            return
+        data = {
+            'language': self.language,
+            'progress': self.progress,
+            'level': self.level,
+            'theme': self.current_theme,
+        }
+        save_user_config(self.username, data)
+        print(f"Saved config for {self.username}")
+
+    def set_theme(self, theme_name):
+        """Sets the application theme."""
+        self.current_theme = theme_name
+        self.theme_colors = DARK_THEME if theme_name == 'dark' else LIGHT_THEME
+        apply_theme(self.root, self.theme_colors)
+        # Special case for root window background
+        self.root.config(bg=self.theme_colors["bg"])
+
+    def toggle_theme(self):
+        """Switches between light and dark themes."""
+        new_theme = 'dark' if self.current_theme == 'light' else 'light'
+        self.set_theme(new_theme)
+        self.save_config() # Save theme preference immediately
+
+    # --- Screen Management ---
+    def clear_screen(self):
+        """Removes all widgets from the root window."""
         for widget in self.root.winfo_children():
             widget.destroy()
 
-        tk.Label(self.root, text="Benvenuto!", font=("Arial", 18)).pack(pady=20)
-        tk.Label(self.root, text="Inserisci il tuo nome:").pack()
-        self.username_entry = tk.Entry(self.root)
+    # --- Login / Language Selection ---
+    def show_login_screen(self):
+        self.clear_screen()
+        self.username = None # Reset user data when going back to login
+        self.language = None
+        self.progress = 0
+        self.level = "Beginner"
+        self.set_theme(self.current_theme) # Re-apply theme in case it was changed
+
+        login_frame = tk.Frame(self.root, padx=20, pady=40)
+        login_frame.pack(expand=True)
+        apply_theme(login_frame, self.theme_colors) # Apply theme to the frame
+
+        tk.Label(login_frame, text="Language Mentor", font=self.header_font).pack(pady=(0, 30))
+        tk.Label(login_frame, text="Enter your Nickname:", font=self.label_font).pack(pady=5)
+
+        self.username_entry = tk.Entry(login_frame, width=30, font=self.label_font)
         self.username_entry.pack(pady=5)
+        self.username_entry.focus_set() # Set focus to username entry
 
-        tk.Label(self.root, text="Scegli una lingua:").pack(pady=10)
-        self.lang_frame = tk.Frame(self.root)
-        self.lang_frame.pack(pady=5)
+        # Frame for language buttons (initially hidden)
+        self.lang_frame = tk.Frame(login_frame)
+        # Pack it later when needed
+        apply_theme(self.lang_frame, self.theme_colors)
 
-        for idx, (lang, path) in enumerate(FLAGS.items()):
-            try:
-                img = Image.open(path).resize((50, 30))
-                photo = ImageTk.PhotoImage(img)
-                btn = tk.Button(self.lang_frame, image=photo, command=lambda l=lang: self.set_language(l))
-                btn.image = photo
-                btn.grid(row=0, column=idx, padx=5)
-            except Exception as e:
-                print(f"Errore nel caricamento dell'immagine {path}: {e}")
-                # Fallback button senza immagine
-                btn = tk.Button(self.lang_frame, text=lang, command=lambda l=lang: self.set_language(l))
-                btn.grid(row=0, column=idx, padx=5)
+        self.login_button = tk.Button(login_frame, text="Login / Register", command=self.handle_login_attempt, font=self.button_font, width=20)
+        self.login_button.pack(pady=20)
 
-        self.start_button = tk.Button(self.root, text="Inizia", command=self.start_session, width=20, bg="#4CAF50", fg="white")
-        self.start_button.pack(pady=30)
+        # Bind Enter key to login button
+        self.root.bind('<Return>', lambda event=None: self.login_button.invoke())
 
-    def set_language(self, lang):
-        self.language = lang
-        messagebox.showinfo("Lingua selezionata", f"Hai scelto: {lang}")
+        # Apply theme to newly created widgets within login_frame
+        apply_theme(login_frame, self.theme_colors)
 
-    def start_session(self):
-        self.username = self.username_entry.get()
-        if not self.username or not self.language:
-            messagebox.showwarning("Dati mancanti", "Inserisci nome e scegli una lingua.")
+    def handle_login_attempt(self):
+        # Unbind Enter key once button is clicked or Enter is pressed
+        self.root.unbind('<Return>')
+
+        entered_username = self.username_entry.get().strip()
+        if not entered_username:
+            messagebox.showwarning("Input Required", "Please enter your nickname.")
+            # Re-bind Enter key if input was invalid
+            self.root.bind('<Return>', lambda event=None: self.login_button.invoke())
             return
+
+        if self.load_config(entered_username):
+            # User exists, config loaded
+            print(f"Welcome back, {self.username}!")
+            self.show_main_dashboard()
+        else:
+            # New user
+            print(f"Creating profile for new user: {entered_username}")
+            self.username = entered_username
+            # Set defaults for new user before showing language selection
+            self.language = None
+            self.progress = 0
+            self.level = "Beginner"
+            self.current_theme = 'light' # Default to light
+            self.show_language_selection() # Proceed to language selection
+
+    def show_language_selection(self):
+        """Shows language selection buttons for a new user."""
+        self.login_button.config(state=tk.DISABLED) # Disable login button now
+
+        tk.Label(self.lang_frame, text="Choose a language to learn:", font=self.label_font).pack(pady=(15, 10))
+
+        flags_subframe = tk.Frame(self.lang_frame)
+        flags_subframe.pack(pady=5)
+        apply_theme(flags_subframe, self.theme_colors)
+
+        flag_images = {} # Keep references to images
+
+        for lang, path in FLAGS.items():
+            try:
+                img = Image.open(path)
+                # Resize more reasonably if needed, maintaining aspect ratio
+                img.thumbnail((60, 60)) # Resize keeping aspect ratio, max 60x60
+                photo = ImageTk.PhotoImage(img)
+                flag_images[lang] = photo # Store reference
+
+                btn = tk.Button(flags_subframe, image=photo, text=lang, compound=tk.TOP,
+                                font=self.label_font, command=lambda l=lang: self.confirm_language(l),
+                                width=80, height=80) # Adjust size as needed
+                btn.image = photo # Keep a reference!
+                btn.pack(side=tk.LEFT, padx=10, pady=5)
+
+            except FileNotFoundError:
+                print(f"Warning: Flag image not found at {path}. Using text button.")
+                btn = tk.Button(flags_subframe, text=lang, font=self.label_font,
+                                command=lambda l=lang: self.confirm_language(l), width=10)
+                btn.pack(side=tk.LEFT, padx=10, pady=5)
+            except Exception as e:
+                print(f"Error loading image {path}: {e}")
+                btn = tk.Button(flags_subframe, text=lang, font=self.label_font,
+                                command=lambda l=lang: self.confirm_language(l), width=10)
+                btn.pack(side=tk.LEFT, padx=10, pady=5)
+
+        # Pack the language frame now that it's populated
+        self.lang_frame.pack(pady=10)
+        apply_theme(self.lang_frame, self.theme_colors) # Apply theme to the frame and its new children
+
+    def confirm_language(self, selected_language):
+        """Called when a new user clicks a language flag."""
+        self.language = selected_language
+        print(f"User '{self.username}' selected language: {self.language}")
+        # Save the initial configuration for the new user
+        self.save_config()
+        messagebox.showinfo("Language Set", f"Great! You've chosen to learn {self.language}.")
         self.show_main_dashboard()
 
-    # ───────────────────────────────────────────────────────────── #
-    # DASHBOARD PRINCIPALE
+
+    # --- Main Dashboard ---
     def show_main_dashboard(self):
-        for widget in self.root.winfo_children():
-            widget.destroy()
-            
-        # Header
-        header_frame = tk.Frame(self.root, bg="#f0f0f0", pady=10)
-        header_frame.pack(fill=tk.X)
-        
-        tk.Label(header_frame, text=f"{self.username} - {self.language}", font=("Arial", 16), bg="#f0f0f0").pack(side=tk.LEFT, padx=10)
-        
-        # Contenuto principale
-        main_frame = tk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-        
-        self.content_area = scrolledtext.ScrolledText(main_frame, wrap=tk.WORD, width=40, height=15)
-        self.content_area.pack(fill=tk.BOTH, expand=True, pady=10)
-        self.content_area.insert(tk.END, f"Benvenuto {self.username}!\nSei pronto per imparare {self.language}?\n\nLivello attuale: {self.level}")
-        self.content_area.config(state=tk.DISABLED)
-        
-        # Bottoni
-        button_frame = tk.Frame(self.root)
-        button_frame.pack(fill=tk.X, padx=20, pady=10)
-        
-        buttons = [
-            ("TIP", self.generate_tip),
-            ("LEARN", self.start_quiz),
-            ("PROGRESS", self.show_progress),
-            ("DETECT LEVEL", self.detect_level)
-        ]
-        
-        for i, (text, command) in enumerate(buttons):
-            btn = tk.Button(button_frame, text=text, font=("Arial", 14), command=command, width=10, height=2)
-            btn.grid(row=0, column=i, padx=5, pady=5)
-            
-        button_frame.grid_columnconfigure(0, weight=1)
-        button_frame.grid_columnconfigure(1, weight=1)
-        button_frame.grid_columnconfigure(2, weight=1)
-        button_frame.grid_columnconfigure(3, weight=1)
-        
-        # Status Bar
-        status_frame = tk.Frame(self.root, bg="#f0f0f0", pady=5)
-        status_frame.pack(fill=tk.X, side=tk.BOTTOM)
-        
-        self.status_label = tk.Label(status_frame, text="Pronto", bg="#f0f0f0")
-        self.status_label.pack(side=tk.LEFT, padx=10)
+        self.clear_screen()
+        self.set_theme(self.current_theme)
+
+        # --- Top Bar ---
+        top_frame = tk.Frame(self.root, pady=5, padx=10)
+        top_frame.pack(fill=tk.X)
+        apply_theme(top_frame, self.theme_colors)
+
+        welcome_label = tk.Label(top_frame, text=f"Welcome, {self.username}!", font=self.header_font)
+        welcome_label.pack(side=tk.LEFT)
+
+        exit_button = tk.Button(top_frame, text="Logout", command=self.show_login_screen, font=self.button_font, width=8)
+        exit_button.pack(side=tk.RIGHT, padx=(0, 5))
+
+        theme_button = tk.Button(top_frame, text="Theme", command=self.toggle_theme, font=self.button_font, width=8)
+        theme_button.pack(side=tk.RIGHT, padx=(0, 10))
+
+        # --- Info Bar ---
+        info_frame = tk.Frame(self.root, pady=5, padx=10)
+        info_frame.pack(fill=tk.X)
+        apply_theme(info_frame, self.theme_colors)
+
+        self.exp_label = tk.Label(info_frame, text=f"EXP: {self.progress}", font=self.label_font)
+        self.exp_label.pack(side=tk.LEFT, padx=(0, 15))
+
+        self.level_label = tk.Label(info_frame, text=f"Level: {self.level}", font=self.label_font)
+        self.level_label.pack(side=tk.LEFT, padx=(0, 15))
+
+        self.language_label = tk.Label(info_frame, text=f"Learning: {self.language}", font=self.label_font)
+        self.language_label.pack(side=tk.LEFT)
+
+        # --- Daily Tip Area ---
+        tip_frame = tk.LabelFrame(self.root, text="Daily Tip", padx=10, pady=10, font=self.label_font)
+        tip_frame.pack(fill=tk.X, padx=10, pady=10)
+        apply_theme(tip_frame, self.theme_colors)
+        tip_frame.config(fg=self.theme_colors["fg"]) # Set label frame text color
+
+        self.tip_textbox = scrolledtext.ScrolledText(tip_frame, height=5, wrap=tk.WORD, state=tk.DISABLED, font=self.label_font)
+        self.tip_textbox.pack(fill=tk.X, expand=True)
+        # Placeholder text
+        self.tip_textbox.config(state=tk.NORMAL)
+        self.tip_textbox.insert(tk.END, f"A helpful tip about learning {self.language} will appear here soon!")
+        self.tip_textbox.config(state=tk.DISABLED)
+        apply_theme(self.tip_textbox, self.theme_colors) # Apply theme specifically to text box
+
+        # --- Center Buttons ---
+        center_frame = tk.Frame(self.root, pady=5)
+        center_frame.pack(expand=False)
+        apply_theme(center_frame, self.theme_colors)
+
+        level_button = tk.Button(center_frame, text="Level Proficiency Detector", command=self.detect_level, font=self.button_font, width=25, height=2)
+        level_button.pack(pady=10)
+
+        quiz_button = tk.Button(center_frame, text="Quiz", command=self.start_quiz, font=self.button_font, width=25, height=2)
+        quiz_button.pack(pady=10)
+
+        # Apply theme to all widgets on dashboard
+        apply_theme(self.root, self.theme_colors)
+        self.root.config(bg=self.theme_colors["bg"]) # Ensure root bg is set
+
+        # Load initial tip (or other initial actions)
+        # self.generate_tip() # Maybe call this here or leave it manual
+
+    # --- Placeholder/Core Logic Functions (Keep your CrewAI/threading logic here) ---
 
     def update_status(self, text):
-        self.status_label.config(text=text)
+         # You might want a dedicated status bar at the bottom if needed
+         print(f"Status: {text}") # Simple print for now
+         # Example: self.status_label.config(text=text) if you add a status bar
+
+    def update_main_content(self, text, title="Info"):
+        """Updates the Daily Tip box or shows a message box."""
+        # Option 1: Update the tip box (if appropriate)
+        # self.tip_textbox.config(state=tk.NORMAL)
+        # self.tip_textbox.delete(1.0, tk.END)
+        # self.tip_textbox.insert(tk.END, text)
+        # self.tip_textbox.config(state=tk.DISABLED)
+
+        # Option 2: Show a popup (better for results/feedback)
+        messagebox.showinfo(title, text)
         self.root.update_idletasks()
-        
-    def update_content(self, text, clear=True):
-        self.content_area.config(state=tk.NORMAL)
-        if clear:
-            self.content_area.delete(1.0, tk.END)
-        self.content_area.insert(tk.END, text)
-        self.content_area.config(state=tk.DISABLED)
-        self.content_area.see(tk.END)
 
-    # ───────────────────────────────────────────────────────────── #
-    # CALLBACK FUNZIONALI
+    def _update_ui_safe(self, func, *args):
+        """Helper to schedule UI updates from threads."""
+        self.root.after(0, func, *args)
 
+    # --- Tip Generation ---
     def generate_tip(self):
-        self.update_status("Generazione tip in corso...")
-        self.update_content("🧠 Sto generando un tip per te...\nAttendi qualche secondo...")
-        threading.Thread(target=self._run_tip_task).start()
+        # This would ideally update the self.tip_textbox
+        self.update_status("Generating tip...")
+        # Make the tip box writable, add placeholder, disable again
+        self.tip_textbox.config(state=tk.NORMAL)
+        self.tip_textbox.delete(1.0, tk.END)
+        self.tip_textbox.insert(tk.END, "🧠 Generating a tip...")
+        self.tip_textbox.see(tk.END)
+        self.tip_textbox.config(state=tk.DISABLED)
+        apply_theme(self.tip_textbox, self.theme_colors) # Reapply theme
+        threading.Thread(target=self._run_tip_task, daemon=True).start()
 
     def _run_tip_task(self):
         try:
-            # Creazione di un nuovo mentor
-            mentor = LanguageMentor()
-            
-            # Utilizziamo direttamente l'agente tip con il suo task
-            tip_agent = mentor.tip_agent()
-            tip_task = mentor.tip_task()
-            
-            # Creazione del task specifico per il tip
-            tip_task.description = tip_task.description.replace("{{user_name}}", self.username).replace("{{language}}", self.language)
-            
-            # Esecuzione
-            result = tip_agent.execute_task(tip_task)
-            
-            self.root.after(0, lambda: self.update_content(f"📌 Tip per oggi:\n\n{result}"))
-            self.root.after(0, lambda: self.update_status("Tip generato con successo"))
-        except Exception as e:
-            self.root.after(0, lambda: self.update_content(f"Si è verificato un errore: {str(e)}"))
-            self.root.after(0, lambda: self.update_status("Errore"))
-            import traceback
-            print(traceback.format_exc())
+            # --- Replace with your actual CrewAI/API call ---
+            import time
+            time.sleep(2) # Simulate work
+            result = f"Here's a tip for {self.language}: Practice speaking even if it's just to yourself!"
+            # --- End Replace ---
 
+            self._update_ui_safe(self._display_tip, result)
+            self._update_ui_safe(self.update_status, "Tip generated.")
+        except Exception as e:
+            self._update_ui_safe(self._display_tip, f"Error generating tip: {e}")
+            self._update_ui_safe(self.update_status, "Error")
+            print(f"Tip generation error: {e}")
+            # import traceback
+            # print(traceback.format_exc())
+
+    def _display_tip(self, tip_text):
+        """Safely updates the tip textbox from any thread."""
+        self.tip_textbox.config(state=tk.NORMAL)
+        self.tip_textbox.delete(1.0, tk.END)
+        self.tip_textbox.insert(tk.END, tip_text)
+        self.tip_textbox.config(state=tk.DISABLED)
+        apply_theme(self.tip_textbox, self.theme_colors) # Reapply theme
+
+    # --- Quiz ---
     def start_quiz(self):
-        self.update_status("Preparazione quiz...")
-        self.update_content("🧩 Sto preparando il quiz...\nAttendi qualche secondo...")
-        self.current_quiz_question = 0
-        self.quiz_correct = 0
-        self.quiz_wrong = 0
-        self.quiz_questions = []
-        threading.Thread(target=self._prepare_quiz).start()
-        
-    def _prepare_quiz(self):
-        try:
-            # Utilizziamo direttamente l'agente quiz
-            mentor = LanguageMentor()
-            quiz_agent = mentor.quiz_agent()
-            
-            # Ask the agent to generate quiz questions
-            prompt = f"Genera un quiz di 5 domande a scelta multipla per testare la conoscenza di {self.language} per {self.username}. " \
-                     f"Ogni domanda deve avere 4 opzioni. Formatta il risultato come JSON."
-            
-            result = quiz_agent.execute_task(
-                task=Task(
-                    description=prompt,
-                    expected_output="Un quiz in formato JSON con domande e opzioni"
-                )
-            )
-            
-            # Try to parse quiz questions from the result
-            try:
-                # Look for JSON pattern
-                json_pattern = r'\[\s*{.*}\s*\]'
-                json_match = re.search(json_pattern, result, re.DOTALL)
-                
-                if json_match:
-                    json_str = json_match.group(0)
-                    questions = json.loads(json_str)
-                    self.quiz_questions = questions
-                else:
-                    # Fallback: Parse the text output manually
-                    questions = []
-                    lines = result.split('\n')
-                    
-                    current_q = None
-                    options = []
-                    correct_idx = None
-                    
-                    for line in lines:
-                        if line.strip().startswith("Domanda") or line.strip().startswith("Q"):
-                            # Save previous question if exists
-                            if current_q and options and correct_idx is not None:
-                                questions.append({
-                                    "question": current_q,
-                                    "options": options,
-                                    "correct": correct_idx
-                                })
-                            
-                            # Start new question
-                            q_parts = line.split(":", 1)
-                            if len(q_parts) > 1:
-                                current_q = q_parts[1].strip()
-                            else:
-                                current_q = "Domanda generica"
-                            options = []
-                            correct_idx = None
-                            
-                        elif line.strip().startswith(("A)", "A.", "1)", "1.")):
-                            options = []  # Reset options
-                            options.append(line.split(")", 1)[1].strip() if ")" in line else line.split(".", 1)[1].strip())
-                        elif line.strip().startswith(("B)", "B.", "2)", "2.")):
-                            options.append(line.split(")", 1)[1].strip() if ")" in line else line.split(".", 1)[1].strip())
-                        elif line.strip().startswith(("C)", "C.", "3)", "3.")):
-                            options.append(line.split(")", 1)[1].strip() if ")" in line else line.split(".", 1)[1].strip())
-                        elif line.strip().startswith(("D)", "D.", "4)", "4.")):
-                            options.append(line.split(")", 1)[1].strip() if ")" in line else line.split(".", 1)[1].strip())
-                        elif "risposta corretta" in line.lower() or "correct answer" in line.lower():
-                            if "A" in line or "1" in line:
-                                correct_idx = 0
-                            elif "B" in line or "2" in line:
-                                correct_idx = 1
-                            elif "C" in line or "3" in line:
-                                correct_idx = 2
-                            elif "D" in line or "4" in line:
-                                correct_idx = 3
-                    
-                    # Add the last question
-                    if current_q and options and correct_idx is not None:
-                        questions.append({
-                            "question": current_q,
-                            "options": options,
-                            "correct": correct_idx
-                        })
-                    
-                    if questions:
-                        self.quiz_questions = questions
-                    else:
-                        raise Exception("Impossibile parsare le domande del quiz")
-            except Exception as parsing_error:
-                # Fallback con domande predefinite
-                print(f"Errore nel parsing: {parsing_error}")
-                self.quiz_questions = [
-                    {"question": f"Come si dice 'ciao' in {self.language}?", "options": ["Hello", "Goodbye", "Thank you", "Sorry"], "correct": 0},
-                    {"question": f"Come si dice 'grazie' in {self.language}?", "options": ["Sorry", "Please", "Thank you", "Welcome"], "correct": 2},
-                    {"question": f"Quale di queste è una frase corretta in {self.language}?", "options": ["Option 1", "Option 2", "Option 3", "Option 4"], "correct": 1},
-                    {"question": f"Quale parola significa 'casa' in {self.language}?", "options": ["Car", "House", "Food", "Water"], "correct": 1},
-                    {"question": f"Come si dice 'buongiorno' in {self.language}?", "options": ["Good morning", "Good night", "Good evening", "Good afternoon"], "correct": 0},
-                ]
-                
-            self.root.after(0, self._show_quiz_question)
-        except Exception as e:
-            self.root.after(0, lambda: self.update_content(f"Si è verificato un errore nella preparazione del quiz: {str(e)}"))
-            self.root.after(0, lambda: self.update_status("Errore"))
-            import traceback
-            print(traceback.format_exc())
-    
-    def _show_quiz_question(self):
-        if self.current_quiz_question < len(self.quiz_questions):
-            question = self.quiz_questions[self.current_quiz_question]
-            
-            # Pulisci la schermata
-            for widget in self.root.winfo_children():
-                widget.destroy()
-                
-            # Mostra la domanda
-            tk.Label(self.root, text=f"Domanda {self.current_quiz_question + 1}/{len(self.quiz_questions)}", 
-                     font=("Arial", 14)).pack(pady=10)
-            tk.Label(self.root, text=question["question"], font=("Arial", 12), wraplength=450).pack(pady=10)
-            
-            # Mostra le opzioni
-            for i, option in enumerate(question["options"]):
-                btn = tk.Button(
-                    self.root, 
-                    text=option, 
-                    font=("Arial", 12),
-                    width=30,
-                    wraplength=300,
-                    command=lambda idx=i: self._check_answer(idx, question["correct"])
-                )
-                btn.pack(pady=5)
-                
-            # Pulsante per tornare indietro
-            tk.Button(self.root, text="Annulla quiz", command=self.show_main_dashboard).pack(pady=20)
-        else:
-            self._calculate_quiz_result()
-            
-    def _check_answer(self, selected_idx, correct_idx):
-        if selected_idx == correct_idx:
-            self.quiz_correct += 1
-            messagebox.showinfo("Risposta", "Corretto! 👍")
-        else:
-            self.quiz_wrong += 1
-            messagebox.showinfo("Risposta", f"Sbagliato! La risposta corretta era l'opzione {correct_idx + 1} 👎")
-            
-        self.current_quiz_question += 1
-        self._show_quiz_question()
-            
-    def _calculate_quiz_result(self):
-        try:
-            # Utilizziamo direttamente l'agente quiz
-            mentor = LanguageMentor()
-            quiz_agent = mentor.quiz_agent()
-            calculator = QuizCalculator()
-            
-            # Utilizziamo lo strumento calculator
-            score_result = calculator._run(correct=self.quiz_correct, wrong=self.quiz_wrong)
-            
-            # Aggiorna il progresso
-            score = self.quiz_correct - self.quiz_wrong
-            if score > 0:
-                self.progress += score
-                
-            # Salva il risultato
-            self.quiz_results.append({
-                "correct": self.quiz_correct,
-                "wrong": self.quiz_wrong,
-                "score": score
-            })
-            
-            # Esecuzione task di analisi del quiz
-            result = quiz_agent.execute_task(
-                task=Task(
-                    description=f"Analizza i risultati del quiz per {self.username} che sta imparando {self.language}. " \
-                              f"Risposte corrette: {self.quiz_correct}, Risposte errate: {self.quiz_wrong}. " \
-                              f"Fornisci un feedback motivazionale.",
-                    expected_output="Un'analisi dei risultati con suggerimenti di miglioramento"
-                )
-            )
-            
-            # Mostra risultato
-            self.show_main_dashboard()
-            self.update_content(f"Quiz completato!\n\nRisposte corrette: {self.quiz_correct}\nRisposte errate: {self.quiz_wrong}\n\n{result}")
-            self.update_status("Quiz completato")
-        except Exception as e:
-            self.show_main_dashboard()
-            self.update_content(f"Si è verificato un errore nel calcolo del risultato: {str(e)}")
-            self.update_status("Errore")
-            import traceback
-            print(traceback.format_exc())
+        # Placeholder - use your existing quiz logic, adapting UI updates
+        self.update_status("Starting quiz...")
+        messagebox.showinfo("Quiz", "Quiz functionality needs to be implemented.")
+        # Example: threading.Thread(target=self._prepare_quiz).start()
 
-    def show_progress(self):
-        self.update_status("Visualizzazione progressi...")
-        
-        progress_text = f"Riepilogo progressi per {self.username}\n"
-        progress_text += f"Lingua: {self.language}\n"
-        progress_text += f"Livello: {self.level}\n"
-        progress_text += f"Punteggio totale: {self.progress}\n\n"
-        
-        if self.quiz_results:
-            progress_text += "Quiz completati:\n"
-            for i, quiz in enumerate(self.quiz_results):
-                progress_text += f"Quiz {i+1}: Corrette {quiz['correct']}, Errate {quiz['wrong']}, Punteggio {quiz['score']}\n"
-        else:
-            progress_text += "Non hai ancora completato nessun quiz.\n"
-            
-        progress_text += "\nContinua così per migliorare il tuo livello!"
-        
-        self.update_content(progress_text)
-        self.update_status("Progressi visualizzati")
-
+    # --- Level Detection ---
     def detect_level(self):
-        self.update_status("Rilevamento livello in corso...")
-        self.update_content("🔍 Sto valutando il tuo livello di conoscenza della lingua...\nAttendi qualche secondo...")
-        threading.Thread(target=self._run_level_task).start()
-        
-    def _run_level_task(self):
-        try:
-            # Utilizziamo direttamente l'agente di rilevamento livello
-            mentor = LanguageMentor()
-            level_agent = mentor.level_detector()
-            level_task = mentor.level_task()
-            
-            # Sostituiamo i placeholder nelle descrizioni del task
-            level_task.description = level_task.description.replace("{{user_name}}", self.username).replace("{{language}}", self.language)
-            
-            # Esecuzione
-            result = level_agent.execute_task(level_task)
-            
-            # Estrai il livello dal risultato
-            if "principiante" in result.lower():
-                self.level = "Principiante" 
-            elif "intermedio" in result.lower():
-                self.level = "Intermedio"
-            elif "avanzato" in result.lower():
-                self.level = "Avanzato"
-            else:
-                self.level = "Non classificato"
-                
-            self.root.after(0, lambda: self.update_content(f"🎓 Valutazione del livello completata:\n\n{result}"))
-            self.root.after(0, lambda: self.update_status(f"Livello rilevato: {self.level}"))
-        except Exception as e:
-            self.root.after(0, lambda: self.update_content(f"Si è verificato un errore: {str(e)}"))
-            self.root.after(0, lambda: self.update_status("Errore"))
-            import traceback
-            print(traceback.format_exc())
+        self.update_status("Detecting level...")
+        # Show feedback in a popup for now
+        self.update_main_content("🔍Proficiency detection functionality needs to be implemented.", title="Proficiency Level Detection")
 
-# ───────────────────────────────────────────────────────────── #
-# MAIN
+# --- Main Execution ---
 if __name__ == "__main__":
-    # Import aggiuntivo per l'esecuzione diretta
-    from crewai import Task
-    from tools.calculator import QuizCalculator
-    
+
+    # Ensure the flags directory exists or provide a clear error
+    if not FLAGS_DIR.is_dir():
+        print(f"ERROR: Flags directory not found at '{FLAGS_DIR}'. Please create it and add flag images (e.g., uk.png, japan.png, spain.png).")
+        # Optionally exit or continue without flags
+        # exit()
+
     root = tk.Tk()
     app = LanguageMentorApp(root)
     root.mainloop()
