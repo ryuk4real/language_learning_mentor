@@ -1,6 +1,12 @@
+import os
+
 from crewai.tools import BaseTool
 from typing import Type
 from pydantic import BaseModel, Field
+
+
+import smtplib
+from email.mime.text import MIMEText
 
 class EmailInput(BaseModel):
     recipient: str = Field(..., description="Indirizzo email del destinatario")
@@ -10,11 +16,18 @@ class EmailInput(BaseModel):
 class EmailSender(BaseTool):
     name: str = "Email Sender"
     description: str = "Invia un'email all'utente"
+
     args_schema: Type[BaseModel] = EmailInput
-    
+
     def _run(self, recipient: str, subject: str, body: str) -> str:
-        # In un'applicazione reale, qui ci sarebbe la logica per inviare l'email
-        print(f"Email simulata inviata a {recipient}")
-        print(f"Oggetto: {subject}")
-        print(f"Corpo: {body}")
-        return f"Email inviata con successo a {recipient}"
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = os.getenv("EMAIL_FROM")
+        msg['To'] = recipient
+
+        with smtplib.SMTP(os.getenv("SMTP_SERVER"), int(os.getenv("SMTP_PORT"))) as server:
+            server.starttls()
+            server.login(os.getenv("EMAIL_USER"), os.getenv("EMAIL_PASSWORD"))
+            server.send_message(msg)
+
+        return f"Email inviata a {recipient}"
