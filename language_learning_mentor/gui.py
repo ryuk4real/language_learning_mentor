@@ -300,7 +300,6 @@ class MainWindow(QWidget): # Using QWidget as the main window
                     flag_container = QWidget() # Container for icon and text labels
                     flag_container.setLayout(flag_v_layout)
                     flag_container.setCursor(Qt.PointingHandCursor) # Indicate it's clickable
-                    flag_container.setStyleSheet("QWidget { border: 1px solid transparent; } QWidget:hover { border: 1px solid #AAAAAA; }") # Simple hover effect
 
                     # Make the container clickable
                     # Use a lambda to capture the language and call confirm_language
