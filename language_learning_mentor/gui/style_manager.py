@@ -53,5 +53,95 @@ class StyleManager:
         return palette
 
     def apply_theme(self, theme_preference):
-        # TODO: implement
-        pass
+        """Applies the specified theme palette to the application."""
+        app = QApplication.instance()
+        if not app:
+            print("Warning: QApplication instance not found. Cannot apply theme.")
+            return
+
+        if theme_preference == 'dark':
+            print("Applying dark theme.")
+            app.setPalette(self._dark_palette)
+        else: # Default to light
+            print("Applying light theme.")
+            app.setPalette(self._light_palette)
+
+    def get_palette(self, theme_preference):
+         """Returns the palette object for a given theme preference."""
+         if theme_preference == 'dark':
+             return self._dark_palette
+         else:
+             return self._light_palette
+         
+    def get_system_theme(self):
+        """Detects whether the system is using a dark or light theme in a cross-platform way."""
+        from PySide6.QtCore import QOperatingSystemVersion, QSysInfo
+        
+        # Default to light theme if detection fails
+        default_theme = 'light'
+        
+        try:
+            # Method 1: Check for specific platform indicators
+            platform_name = QSysInfo.productType().lower()
+            
+            if 'windows' in platform_name:
+                # Windows-specific theme detection
+                try:
+                    import winreg
+                    registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
+                    key_path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+                    key = winreg.OpenKey(registry, key_path)
+                    # AppsUseLightTheme = 0 means dark theme
+                    value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                    return 'light' if value == 1 else 'dark'
+                except Exception as e:
+                    print(f"Windows theme detection error: {e}")
+                    
+            elif any(x in platform_name for x in ['linux', 'unix']):
+                # Linux theme detection via environment variables or gsettings
+                try:
+                    # Try gsettings for GNOME/GTK-based desktops
+                    import subprocess
+                    try:
+                        result = subprocess.run(
+                            ['gsettings', 'get', 'org.gnome.desktop.interface', 'color-scheme'],
+                            capture_output=True, text=True, timeout=1
+                        )
+                        output = result.stdout.strip().lower()
+                        if 'dark' in output:
+                            return 'dark'
+                        elif 'light' in output or 'default' in output:
+                            return 'light'
+                    except (subprocess.SubprocessError, FileNotFoundError):
+                        pass  # gsettings not available or command failed
+                    
+                    # Fallback check for common environment variables
+                    import os
+                    desktop_env = os.environ.get('XDG_CURRENT_DESKTOP', '').lower()
+                    if desktop_env:
+                        if 'kde' in desktop_env:
+                            # Try KDE specific method
+                            try:
+                                result = subprocess.run(
+                                    ['kreadconfig5', '--group', 'General', '--key', 'ColorScheme', '--file', 'kdeglobals'],
+                                    capture_output=True, text=True, timeout=1
+                                )
+                                output = result.stdout.strip().lower()
+                                return 'dark' if 'dark' in output else 'light'
+                            except (subprocess.SubprocessError, FileNotFoundError):
+                                pass  # kreadconfig5 not available
+                except Exception as e:
+                    print(f"Linux theme detection error: {e}")
+            
+            # Method 2: Fallback using application palette comparison
+            from PySide6.QtGui import QGuiApplication
+            palette = QGuiApplication.palette()
+            window_color = palette.color(palette.Window)
+            text_color = palette.color(palette.WindowText)
+            
+            # If text is lighter than background, likely dark mode
+            return 'dark' if text_color.lightness() > window_color.lightness() else 'light'
+            
+        except Exception as e:
+            print(f"Theme detection error: {e}")
+            return default_theme
