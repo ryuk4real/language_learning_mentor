@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QStackedWidget, QMessageBox, QTextEdit, QGroupBox,
-    QSizePolicy, QSpacerItem, QStyleFactory # Import QStyleFactory
+    QSizePolicy, QSpacerItem, QStyleFactory, QMessageBox, QDialog # Import QStyleFactory
 )
 from PySide6.QtGui import QPixmap, QIcon, QFont, QAction, QColor, QPalette
 from PySide6.QtCore import Qt, QTimer, QMetaObject, Q_ARG, QSize, QObject # QObject needed for signals/slots if inheriting QWidget
@@ -11,6 +11,9 @@ from logic.app_controller import AppController
 from gui.login_screen import LoginScreen
 from gui.dashboard_screen import DashboardScreen
 from gui.style_manager import StyleManager
+from gui.quiz_dialog import QuizDialog
+from gui.analysis_dialog import AnalysisDialog
+from gui.analysis_input_dialog import AnalysisInputDialog
 
 class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status bar
     def __init__(self):
@@ -49,6 +52,7 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         self.dashboard_screen.level_detection_requested.connect(self.controller.detect_level)
         self.dashboard_screen.quiz_requested.connect(self.controller.start_quiz)
         self.dashboard_screen.daily_tip_requested.connect(self.controller.request_daily_tip) # Dashboard requests tip
+        self.dashboard_screen.level_detection_requested.connect(self._show_analysis_input)
 
         # Connect signals from AppController back to UI (MainWindow or Screens)
         self.controller.user_loggedIn.connect(self._handle_user_loggedIn) # MainWindow handles screen switch/reset
@@ -59,7 +63,8 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         self.controller.tip_generated.connect(self.dashboard_screen.display_tip) # Dashboard displays tip
         self.controller.theme_changed.connect(self._apply_theme) # MainWindow applies themes
         # Add connections for quiz data, analysis results, etc. when implemented
-
+        self.controller.quiz_data_ready.connect(self._handle_quiz_data_ready)
+        self.controller.analysis_complete.connect(self._handle_analysis_complete)
 
         # --- Initial Setup ---
         # Apply the theme loaded by the controller (default or from config)
@@ -136,3 +141,24 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         """Applies the theme when it changes."""
         print(f"MainWindow: Applying {theme} theme")
         self.style_manager.apply_theme(theme)
+    
+    def _handle_quiz_data_ready(self, quiz_data):
+        """Apre il dialog del quiz quando i dati sono pronti."""
+        dlg = QuizDialog(quiz_data, parent=self)
+        dlg.exec()
+
+    def _handle_analysis_complete(self, analysis_result):
+        """Apre il dialog di analisi al termine."""
+        dlg = AnalysisDialog(analysis_result, parent=self)
+        dlg.exec()
+
+    def _show_analysis_input(self):
+        """Apri il dialog per l'input del testo da analizzare."""
+        # qui c'era placeholder
+        dlg = AnalysisInputDialog(self)
+        if dlg.exec() == QDialog.Accepted:
+            text = dlg.get_text()
+            if text:
+                self.controller.detect_level(text)
+            else:
+                QMessageBox.warning(self, "Testo mancante", "Devi inserire un testo da analizzare.")

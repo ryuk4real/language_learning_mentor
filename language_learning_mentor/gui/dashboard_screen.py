@@ -19,6 +19,7 @@ class DashboardScreen(QWidget):
     level_detection_requested = Signal()
     quiz_requested = Signal()
     daily_tip_requested = Signal()
+    quiz_results_updated = Signal(int) 
 
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -1,4 +1,4 @@
-from PySide6.QtCore import QObject, Signal, QTimer, QMetaObject, Qt, Q_ARG
+from PySide6.QtCore import QObject, Signal 
 import threading
 import time
 
@@ -18,6 +18,8 @@ class AppController(QObject):
     status_message = Signal(str)        # Emitted for messages to a status bar or print
     tip_generated = Signal(str)         # Emitted when a tip is ready
     theme_changed = Signal(str)        # Emitted when theme changes
+    quiz_data_ready    = Signal(object)   # Emesso con la lista delle domande
+    analysis_complete  = Signal(object)   # Emesso con {"feedback":…, "estimated_level":…}
     # Add signals for quiz data, analysis results, etc. as needed
 
     def __init__(self, parent=None):
@@ -240,12 +242,8 @@ class AppController(QObject):
 
         self.status_message.emit("Preparing quiz...")
         # Run quiz data preparation in a thread
-        thread = threading.Thread(
-            target=self._run_prepare_quiz_task,
-            args=(self._level, self._language),
-            daemon=True
-        )
-        thread.start()
+        threading.Thread(target=self._run_prepare_quiz_task, args=(self._level, self._language), daemon=True).start()
+ 
 
     def _run_prepare_quiz_task(self, level, language):
         """Helper method to prepare quiz data in a thread."""
@@ -269,21 +267,33 @@ class AppController(QObject):
         #                             Q_ARG(str, "Quiz Error"),
         #                             Q_ARG(str, f"Error preparing quiz:\n{e}"))
         #    print(f"Error in _run_prepare_quiz_task: {e}")
-        pass
+        quiz = self.lang_processor.prepare_quiz_data(level, language)
+        # Emissione diretta: PySide6 farà la queue-to-GUI thread automaticamente
+        self.quiz_data_ready.emit(quiz)
+        self.status_message.emit("Quiz pronto!")
+ 
 
-    def detect_level(self):
-        #self.status_message.emit("Analyzing proficiency...")
-        ## Run proficiency analysis in a thread
-        #thread = threading.Thread(
-        #    target=self._run_analyze_proficiency_task,
-        #    args=(self._level, self._language),
-        #    daemon=True
-        #)
-        #thread.start()
-        pass
+    def detect_level(self, user_text: str):
+        """Riceve il testo dalla UI e lo invia in background per analisi."""
+        if not self._language:
+            self.status_message.emit("Seleziona una lingua prima dell’analisi.")
+            return
+        if not user_text.strip():
+            self.status_message.emit("Inserisci un testo prima di analizzare.")
+            return
+
+        self.status_message.emit("Analizzando competenza…")
+        # Passiamo il testo reale inserito dall’utente
+        threading.Thread(
+            target=self._run_analyze_proficiency_task,
+            args=(user_text, self._level, self._language),
+            daemon=True
+        ).start()
 
     def _run_analyze_proficiency_task(self, text_sample, current_level, language):
-        pass
+        result = self.lang_processor.analyze_proficiency(text_sample, current_level, language)
+        self.analysis_complete.emit(result)
+        self.status_message.emit("Analisi terminata.")
 
 
     # --- Add methods for other features (e.g., completing quiz, earning EXP, leveling up) ---
