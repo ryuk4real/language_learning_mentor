@@ -14,7 +14,7 @@ tip_agent:
   allow_delegation: false
   provider: groq
   model_name: llama3-70b-8192
-  temperature: 0.5
+  temperature: 0.2
 
 quiz_agent:
   role: "Quiz Evaluator"
