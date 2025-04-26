@@ -1,11 +1,41 @@
 level_task:
-  description: "Valuta il livello iniziale della lingua {{ language }} dell'utente {{ user_name }}."
-  expected_output: "Un report sul livello dell’utente (principiante, intermedio, avanzato)."
+  description: "Assess the user's initial proficiency level in {{ language }}."
+  input_template: |
+    Analyze the following text written by the user in {{ language }}:
+    "{{ text }}"
+
+    Based only on the {{ language }} language, provide:
+    - Detailed feedback highlighting common mistakes.
+    - An estimated proficiency level (Beginner, Intermediate, Advanced, etc.).
+    - Practical improvement tips specifically for {{ language }}.
+
+  expected_output: "A detailed report with feedback, estimated level, and practical improvement suggestions."
+
 
 tip_task:
-  description: "Invia un consiglio linguistico e un fatto culturale quotidiano all'utente {{ user_name }}."
-  expected_output: "Un consiglio utile e una curiosità culturale per oggi."
+  description: "Send a daily language tip and cultural fact to the user."
+  input_template: |
+    Write a short, motivational language learning tip and a cultural fact, both in {{ language }}.
+
+    Target: a user at {{ user_level }} level learning {{ language }}.
+
+    Both the tip and the cultural fact must be fully written in {{ language }} and adapted to the user's proficiency level.
+
+  expected_output: "A helpful tip and a cultural curiosity, both fully written in the target language."
+
 
 quiz_task:
-  description: "Crea e valuta un quiz linguistico per {{ user_name }} in lingua {{ language }}."
-  expected_output: "Punteggio aggiornato dell’utente e feedback sulle risposte."
+  description: "Create and evaluate a language quiz for the user."
+  input_template: |
+    Create a quiz with {{ num_questions }} multiple-choice questions entirely in {{ language }}.
+
+    - Each question must be fully written in {{ language }}.
+    - Provide 4 options per question (all options in {{ language }}).
+    - Indicate which option is the correct answer (zero-based index: 0, 1, 2, 3).
+
+    Target: user at {{ user_level }} level.
+
+    Respond in JSON format as follows:
+    [{"question": "Question text here", "options": ["A", "B", "C", "D"], "correct_answer": 2}, ...].
+
+  expected_output: "A JSON with questions, options, and correct answers in the target language."

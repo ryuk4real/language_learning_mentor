@@ -1,4 +1,4 @@
-from PySide6.QtCore import QObject, Signal 
+from PySide6.QtCore import QObject, Signal, QMetaObject, Q_ARG, Qt
 import threading
 import time
 
@@ -224,15 +224,14 @@ class AppController(QObject):
 
     def _run_tip_generation_task(self, level, language):
         """Helper method to run tip generation in a thread."""
-        #try:
-        #    tip = self.lang_processor.generate_daily_tip(level, language)
-        #    QMetaObject.invokeMethod(self, 'tip_generated', Qt.QueuedConnection, Q_ARG(str, tip))
-        #    QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, "Tip generated."))
-        #except Exception as e:
-        #    QMetaObject.invokeMethod(self, 'tip_generated', Qt.QueuedConnection, Q_ARG(str, f"Error generating tip: {e}"))
-        #    QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, "Error generating tip."))
-        #    print(f"Error in _run_tip_generation_task: {e}")
-        pass
+        try:
+            tip = self.lang_processor.generate_daily_tip(level, language)
+            # Emit signals back to UI thread
+            QMetaObject.invokeMethod(self, 'tip_generated', Qt.QueuedConnection, Q_ARG(str, tip))
+            QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, "Tip generated."))
+        except Exception as e:
+            QMetaObject.invokeMethod(self, 'tip_generated', Qt.QueuedConnection, Q_ARG(str, f"Error: {e}"))
+            QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, "Error generating tip."))
 
     def start_quiz(self):
         """Initiates the process of starting a quiz."""
@@ -247,26 +246,12 @@ class AppController(QObject):
 
     def _run_prepare_quiz_task(self, level, language):
         """Helper method to prepare quiz data in a thread."""
-        #try:
-        #    quiz_data = self.lang_processor.prepare_quiz_data(level, language)
-        #    # Emit signal with quiz data for UI to handle (e.g., show a dialog)
-        #    # self.quiz_data_ready.emit(quiz_data) # Uncomment if you add this signal
-        #    QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, "Quiz data prepared."))
-        #    # Example showing temporary message box from logic thread (for demo)
-        #    from PySide6.QtWidgets import QMessageBox, QWidget # Import locally to avoid circular dependency if not needed elsewhere
-        #    QMetaObject.invokeMethod(None, 'information', Qt.QueuedConnection,
-        #                             Q_ARG(QWidget, None),
-        #                             Q_ARG(str, "Quiz Data Ready!"),
-        #                             Q_ARG(str, f"Quiz data prepared for {language} ({level}).\n{len(quiz_data)} questions.\n(UI needs to implement showing the quiz)"))
-#
-        #except Exception as e:
-        #    QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, "Error preparing quiz."))
-        #    from PySide6.QtWidgets import QMessageBox, QWidget
-        #    QMetaObject.invokeMethod(None, 'critical', Qt.QueuedConnection,
-        #                             Q_ARG(QWidget, None),
-        #                             Q_ARG(str, "Quiz Error"),
-        #                             Q_ARG(str, f"Error preparing quiz:\n{e}"))
-        #    print(f"Error in _run_prepare_quiz_task: {e}")
+        try:
+            quiz = self.lang_processor.prepare_quiz_data(level, language)
+            QMetaObject.invokeMethod(self, 'quiz_data_ready', Qt.QueuedConnection, Q_ARG(object, quiz))
+            QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, "Quiz ready."))
+        except Exception as e:
+            QMetaObject.invokeMethod(self, 'status_message', Qt.QueuedConnection, Q_ARG(str, f"Error preparing quiz: {e}"))
         quiz = self.lang_processor.prepare_quiz_data(level, language)
         # Emissione diretta: PySide6 farà la queue-to-GUI thread automaticamente
         self.quiz_data_ready.emit(quiz)

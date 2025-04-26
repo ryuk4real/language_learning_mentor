@@ -1,165 +1,130 @@
 import threading
-import time # Simulate work
-
-# Assuming CrewAI related imports are functional, keep them (commented out for now)
-# from crewai import Task
-# from crew import LanguageMentor # Your crew definition
-# from crewai import Process, Task
-# from tools.calculator import QuizCalculator # Your tool definition
+import json
+from crewai import Crew, Process
+from crewai.project import CrewBase, agent, crew, task
+from tools.calculator import QuizCalculator
+from tools.email_sender import EmailSender
+from crew import LanguageMentor
 
 class LanguageProcessor:
     """
-    Handles language-specific logic like tip generation, quizzes, etc.
-    Should not directly interact with the UI.
+    Handles language-specific logic by delegating to CrewAI tasks and agents.
+    Runs potentially blocking calls in background threads to keep the UI responsive.
     """
-    def __init__(self, api_key=None):
-        # Initialize CrewAI or other API clients here if needed
-        # self.language_crew = LanguageMentor(openai_api_key=api_key)
-        pass
+    def __init__(self):
+        self.language_crew = LanguageMentor()
 
-    def generate_daily_tip(self, user_level, user_language):
+    def _run_single_task(self, task_obj, input_variables: dict) -> str:
         """
-        Generates a language learning tip based on user level and language.
-        This method should run in a background thread if it involves blocking I/O.
+        Helper per creare una Crew temporanea e farla girare con input dinamico.
         """
-        print(f"LanguageProcessor: Generating tip for {user_language} ({user_level})")
-        # --- Replace with your actual CrewAI/API call ---
-        # try:
-        #     # Example CrewAI usage (adapt to your specific crew/task setup)
-        #     tip_task = Task(
-        #         description=f"Provide a concise, helpful language learning tip for a {user_level} level student learning {user_language}.",
-        #         expected_output="A single, short tip sentence or two.",
-        #         agent=self.language_crew.tip_agent, # Assuming you have a tip agent
-        #     )
-        #     # Example execution (might be part of a process)
-        #     # result = self.language_crew.run_task(tip_task) # Adapt this line
-        #     # For now, simulate work and return a placeholder
-        #     time.sleep(3) # Simulate API call delay
-        #     result = f"Placeholder Tip for {user_language} ({user_level}): Practice listening to native speakers for 15 minutes today!"
-        #     print("LanguageProcessor: Tip generation finished.")
-        #     return result
-        # except Exception as e:
-        #     print(f"Error during tip generation: {e}")
-        #     # import traceback
-        #     # print(traceback.format_exc())
-        #     return f"Error generating tip: {e}"
+        template = self.language_crew.task_templates.get(task_obj.description)
 
-        # Placeholder simulation without CrewAI
-        time.sleep(2) # Simulate work
-        tips = {
-            "Beginner": f"Focus on basic greetings and numbers in {user_language}.",
-            "Intermediate": f"Try writing a short paragraph about your day in {user_language}.",
-            "Advanced": f"Find a podcast or news article in {user_language} and summarize it.",
-        }
-        level_key = user_level if user_level in tips else "Beginner" # Default tip if level is unknown
-        result = tips[level_key]
-        print("LanguageProcessor: Placeholder tip generated.")
+        if template:
+            input_text = template
+            for key, value in input_variables.items():
+                input_text = input_text.replace(f"{{{{ {key} }}}}", str(value))
+            input_variables["task"] = input_text
+            print(f"[DEBUG] Generated input from template: {input_text}")
+
+        temp_crew = Crew(
+            agents=[task_obj.agent],
+            tasks=[task_obj],
+            process=Process.sequential,
+            verbose=True
+        )
+
+        print(f"[DEBUG] Running task with input variables: {input_variables}")
+        result = temp_crew.kickoff(inputs=input_variables)
+
+        print(f"[DEBUG] Raw result from Crew: {result}")
+
         return result
 
-
-    def prepare_quiz_data(self, user_level, user_language, num_questions=5):
+    def generate_daily_tip(self, user_level: str, user_language: str) -> str:
         """
-        Prepares data for a quiz based on user level and language.
-        Returns a list of quiz questions/answers.
+        Generate a daily language learning tip using the tip_agent inside a Crew.
         """
-        print(f"LanguageProcessor: Preparing quiz for {user_language} ({user_level})")
-        # --- Replace with your actual CrewAI/API call or quiz data generation ---
-        # try:
-        #     # Example: Use a CrewAI task to generate quiz questions
-        #     quiz_task = Task(
-        #         description=f"Generate {num_questions} multiple-choice quiz questions suitable for a {user_level} level student learning {user_language}. Include correct answers.",
-        #         expected_output=f"A JSON object containing a list of {num_questions} quiz questions, each with text, options, and correct_answer.",
-        #         agent=self.language_crew.quiz_agent, # Assuming a quiz agent
-        #     )
-        #     # result_json_string = self.language_crew.run_task(quiz_task)
-        #     # quiz_data = json.loads(result_json_string) # Parse JSON output
-        #     # return quiz_data
+        tip_task = self.language_crew.tip_task()
 
-        #     # For now, simulate work and return placeholder data
-        #     time.sleep(4)
-        #     placeholder_quiz = [
-        #         {"question": f"What is 'hello' in {user_language}?", "options": ["Option A", "Option B", "Option C"], "answer": "Option A"},
-        #         {"question": "How do you say 'thank you'?", "options": ["Opt1", "Opt2", "Opt3"], "answer": "Opt2"},
-        #     ]
-        #     print("LanguageProcessor: Quiz data prepared.")
-        #     return placeholder_quiz
+        print("*"*50)
+        print(f"Generating daily tip for level: {user_level}, language: {user_language}")
+        print("*"*50)
 
-        # Placeholder simulation without CrewAI
-        time.sleep(3)
-        placeholder_quiz = [
-            {"question": f"What is 'hello' in {user_language}?", "options": ["Hola", "Konnichiwa", "Bonjour"], "answer": "Konnichiwa" if user_language == "Japanese" else ("Hola" if user_language == "Spanish" else "Hello")},
-            {"question": f"How do you say 'thank you' in {user_language}?", "options": ["Grazie", "Danke", "Arigato"], "answer": "Arigato" if user_language == "Japanese" else ("Gracias" if user_language == "Spanish" else "Thank you")},
-             {"question": f"What is the color 'red' in {user_language}?", "options": ["Akai", "Rojo", "Rouge"], "answer": "Akai" if user_language == "Japanese" else ("Rojo" if user_language == "Spanish" else "Red")},
-        ]
-        print("LanguageProcessor: Placeholder quiz data prepared.")
-        return placeholder_quiz
+        response = self._run_single_task(
+            tip_task,
+            input_variables={
+                "user_level": user_level,
+                "language": user_language,
+                "task": "Generate a daily language learning tip"
+            }
+        )
+        return str(response).strip()
 
-    def analyze_proficiency(self, user_input, user_level, user_language):
+    def prepare_quiz_data(self, user_level: str, user_language: str, num_questions: int = 5) -> list:
         """
-        Analyzes user input to estimate proficiency level or provide feedback.
-        Returns feedback/estimated level.
+        Create a language quiz using the quiz_agent inside a Crew.
         """
-        print(f"LanguageProcessor: Analyzing proficiency for {user_language} ({user_level}) with input: {user_input[:50]}...")
-        # --- Replace with your actual CrewAI/API call for analysis ---
-        # try:
-        #     # Example CrewAI task for analysis
-        #     analysis_task = Task(
-        #         description=f"Analyze the following text written by a {user_level} level student of {user_language}. Provide feedback on grammar, vocabulary, and sentence structure. Estimate their proficiency level.",
-        #         expected_output="Feedback and an estimated level (Beginner, Intermediate, Advanced).",
-        #         agent=self.language_crew.analysis_agent, # Assuming an analysis agent
-        #     )
-        #     # analysis_result = self.language_crew.run_task(analysis_task, inputs={'text_to_analyze': user_input})
-        #     # return analysis_result
+        quiz_task = self.language_crew.quiz_task()
+        response = self._run_single_task(
+            quiz_task,
+            input_variables={
+                "user_level": user_level,
+                "language": user_language,
+                "num_questions": num_questions,
+                "task": "Create a language quiz"
+            }
+        )
 
-        #     # Simulate work and return placeholder
-        #     time.sleep(5)
-        #     feedback = f"Placeholder Analysis for '{user_input[:20]}...': Looks like a {user_level} level attempt in {user_language}. Keep practicing grammar!"
-        #     estimated_level = user_level # Just return current level for placeholder
-        #     return {"feedback": feedback, "estimated_level": estimated_level}
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            return [{
+                "question": "Error generating quiz",
+                "options": ["Please try again later"],
+                "correct_answer": 0
+            }]
 
-        # Placeholder simulation without CrewAI
-        time.sleep(4)
-        feedback = f"Placeholder Analysis: Your attempt at {user_language} seems consistent with a {user_level} level. Keep up the good work!"
-        estimated_level = user_level # Simply return current level for demo
-        print("LanguageProcessor: Placeholder analysis complete.")
-        return {"feedback": feedback, "estimated_level": estimated_level}
+    def analyze_proficiency(self, user_input: str, user_level: str, user_language: str) -> dict:
+        """
+        Analyze language proficiency using the level_detector agent inside a Crew.
+        """
+        level_task = self.language_crew.level_task()
+        response = self._run_single_task(
+            level_task,
+            input_variables={
+                "text": user_input,
+                "current_level": user_level,
+                "language": user_language
+            }
+        )
 
+        feedback = ""
+        estimated_level = user_level
 
-# Example of how you might use these methods from the controller:
-#
-# in app_controller.py:
-# from logic.language_processor import LanguageProcessor
-# import threading
-# from PySide6.QtCore import QTimer, QMetaObject, Q_ARG # for thread-safe updates
-#
-# class AppController(QObject): # Inherit QObject to use signals
-#     tip_generated = Signal(str)
-#     quiz_data_ready = Signal(list)
-#     analysis_complete = Signal(dict)
-#     status_updated = Signal(str) # Assuming you want a status bar
-#
-#     def __init__(self, ...):
-#         super().__init__()
-#         self.lang_processor = LanguageProcessor()
-#         # ... other init ...
-#
-#     def request_daily_tip(self):
-#         if not self.current_user_language:
-#             self.status_updated.emit("Please select a language first.")
-#             return
-#         self.status_updated.emit("Generating tip...")
-#         # Run the potentially blocking task in a thread
-#         thread = threading.Thread(target=self._run_tip_generation, daemon=True)
-#         thread.start()
-#
-#     def _run_tip_generation(self):
-#         try:
-#             tip = self.lang_processor.generate_daily_tip(self.current_user_level, self.current_user_language)
-#             # Use invokeMethod to emit signal on the main GUI thread
-#             QMetaObject.invokeMethod(self, 'tip_generated', Qt.QueuedConnection, Q_ARG(str, tip))
-#             QMetaObject.invokeMethod(self, 'status_updated', Qt.QueuedConnection, Q_ARG(str, "Tip generated."))
-#         except Exception as e:
-#              QMetaObject.invokeMethod(self, 'tip_generated', Qt.QueuedConnection, Q_ARG(str, f"Error: {e}"))
-#              QMetaObject.invokeMethod(self, 'status_updated', Qt.QueuedConnection, Q_ARG(str, "Error generating tip."))
-#
-#     # Similar methods for quiz and analysis
+        if isinstance(response, dict):
+            feedback = response.get('feedback', '')
+            estimated_level = response.get('estimated_level', user_level)
+        else:
+            feedback = str(response)
+            estimated_level = self._extract_level_from_response(feedback, user_level)
+
+        return {
+            'feedback': feedback,
+            'estimated_level': estimated_level
+        }
+
+    def _extract_level_from_response(self, response, default_level):
+        """Helper to try to extract the estimated level from the response text."""
+        response_text = str(response).lower()
+        if "beginner" in response_text:
+            return "Beginner"
+        elif "intermediate" in response_text:
+            return "Intermediate"
+        elif "advanced" in response_text:
+            return "Advanced"
+        elif "proficient" in response_text:
+            return "Proficient"
+        elif "master" in response_text:
+            return "Master"
+        return default_level
