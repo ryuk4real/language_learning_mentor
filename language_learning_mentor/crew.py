@@ -26,18 +26,38 @@ class LanguageMentor():
         self.tasks_config = yaml.safe_load(tasks_config_path.read_text())
         self.task_templates = {}
 
-    def _make_groq_llm(self, cfg: dict) -> ChatGroq:
-        print(f"[DEBUG] Creating Groq LLM with config: {cfg}") 
+    def _make_groq_llm(self, cfg: dict, extra_system_message: str = None) -> ChatGroq:
+        print(f"[DEBUG] Creating Groq LLM with config: {cfg}")
+        base_system_message =  """ 
+        SEMPRE rispondi seguendo questo formato:
+
+            Thought: [Pensa a cosa devi fare]
+            Action: [Nome esatto del tool da usare, ad esempio "Email Sender"]
+            Action Input: {"recipient": "email", "subject": "oggetto", "body": "testo"}
+            Observation: [Risultato dell'azione]
+            
+            DOPO ogni Observation devi SEMPRE scrivere:
+            
+            Thought: I now know the final answer
+            Final Answer: [Risposta finale da inviare all'utente]
+            
+            NON scrivere nulla fuori da questo schema. NON saltare nessuna parte. NON lasciare il Final Answer vuoto.
+        """
+
+        if extra_system_message:
+            base_system_message += f"\n{extra_system_message}"
+
         return ChatGroq(
             model=f"groq/{cfg['model_name']}",
-            temperature=cfg.get('temperature', 0.0),
+            temperature=cfg.get('temperature', 0.2),
             base_url="https://api.groq.com/openai/v1",
+            system_message=base_system_message
         )
 
     @agent
     def level_detector(self) -> Agent:
         cfg = self.agents_config['level_detector']
-        llm = self._make_groq_llm(cfg)
+        llm = self._make_groq_llm(cfg)  # <- adesso va bene, extra_system_message è opzionale
         return Agent(
             role=cfg['role'],
             goal=cfg['goal'],
@@ -47,14 +67,14 @@ class LanguageMentor():
             verbose=True
         )
 
-    @agent
     def tip_agent(self) -> Agent:
         cfg = self.agents_config['tip_agent']
-        llm = self._make_groq_llm(cfg)
+        llm = self._make_groq_llm(cfg,
+                                  extra_system_message="Quando l'utente specifica una lingua, devi SEMPRE rispondere esclusivamente in quella lingua.")
         return Agent(
             role=cfg['role'],
             goal=cfg['goal'],
-            backstory=cfg['backstory'] + " Always reply exclusively in the target language specified by the user.", # Qui sto forzando la lingua, ma non lo prende
+            backstory=cfg['backstory'],
             llm=llm,
             tools=[EmailSender()],
             verbose=True
@@ -63,7 +83,7 @@ class LanguageMentor():
     @agent
     def quiz_agent(self) -> Agent:
         cfg = self.agents_config['quiz_agent']
-        llm = self._make_groq_llm(cfg)
+        llm = self._make_groq_llm(cfg)  # <- adesso va bene
         return Agent(
             role=cfg['role'],
             goal=cfg['goal'],
