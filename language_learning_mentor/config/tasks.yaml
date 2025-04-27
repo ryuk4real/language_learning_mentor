@@ -29,7 +29,7 @@ tip_task:
     - Be positive and motivational.
     - Do not add extra explanations or apologies.
 
-  expected_output: "A short motivational tip and a cultural curiosity, both fully in English."
+  expected_output: "A short motivational tip regarding learning, or vocabulary or grammar of {{language}}, answer fully in English."
 
 quiz_task:
   description: "Create and evaluate a language quiz for the user."
