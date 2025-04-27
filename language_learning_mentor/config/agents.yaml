@@ -9,12 +9,12 @@ level_detector:
 
 tip_agent:
   role: "Daily Tip Agent"
-  goal: "Fornire suggerimenti e approfondimenti culturali quotidiani."
-  backstory: "Un mentore empatico e motivazionale che ama condividere curiosità linguistiche."
+  goal: "Provide daily tips and cultural insights."
+  backstory: "An empathetic and motivational mentor who loves sharing linguistic curiosities."
   allow_delegation: false
   provider: groq
   model_name: llama3-70b-8192
-  temperature: 0.2
+  temperature: 0.4
 
 quiz_agent:
   role: "Quiz Evaluator"

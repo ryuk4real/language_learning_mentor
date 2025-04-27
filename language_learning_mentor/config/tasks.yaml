@@ -9,33 +9,39 @@ level_task:
     - An estimated proficiency level (Beginner, Intermediate, Advanced, etc.).
     - Practical improvement tips specifically for {{ language }}.
 
+    Important rules:
+    - Do not evaluate content, only language proficiency.
+    - Keep the feedback clear and concise, without unrelated comments.
+    - Respond exclusively in English.
+
   expected_output: "A detailed report with feedback, estimated level, and practical improvement suggestions."
 
-
 tip_task:
-  description: "Send a daily language tip and cultural fact to the user."
+  description: "Send a daily language learning tip and a cultural fact to the user."
   input_template: |
-    Write a pretty short (two or three sentences max), motivational language learning tip and a cultural fact, exclusively in {{ language }}.
+    Write a very short, motivational tip for language learning. It can be something about grammar or vocabulary.
+    It must be written in English, and must relate to the language the user is learning: {{ language }}.
+    Adjust the tone and difficulty to match a {{ user_level }} user.
+    Important rules:
+    - Only write in English, even if the language learned is different.
+    - The topic must concern the language the user is learning, {{ language }}.
+    - Keep it under three sentences total.
+    - Be positive and motivational.
+    - Do not add extra explanations or apologies.
 
-    Target: a user at {{ user_level }} level learning {{ language }}.
-
-    Both the tip and the cultural fact must be fully written in {{ language }} and adapted to the user's proficiency level.
-
-  expected_output: "A helpful tip and a cultural curiosity, both fully written in the target language."
-
+  expected_output: "A short motivational tip and a cultural curiosity, both fully in English."
 
 quiz_task:
   description: "Create and evaluate a language quiz for the user."
   input_template: |
-    Create a quiz with {{ num_questions }} multiple-choice questions entirely in {{ language }}.
+    Create a multiple-choice quiz entirely in {{ language }} with {{ num_questions }} questions.
+    For each question:
+    - Provide 4 options (all in {{ language }}).
+    - Clearly mark the correct answer using the zero-based index (0, 1, 2, or 3).
 
-    - Each question must be fully written in {{ language }}.
-    - Provide 4 options per question (all options in {{ language }}).
-    - Indicate which option is the correct answer (zero-based index: 0, 1, 2, 3).
+    Important rules:
+    - Do not explain answers, only provide the JSON structure.
+    - Keep the language appropriate for a {{ user_level }} learner.
+    - Format the response strictly as valid JSON.
 
-    Target: user at {{ user_level }} level.
-
-    Respond in JSON format as follows:
-    [{"question": "Question text here", "options": ["A", "B", "C", "D"], "correct_answer": 2}, ...].
-
-  expected_output: "A JSON with questions, options, and correct answers in the target language."
+  expected_output: "A valid JSON containing questions, options, and correct answers."

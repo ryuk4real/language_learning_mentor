@@ -18,20 +18,24 @@ class LanguageMentor():
 
     def _make_groq_llm(self, cfg: dict, extra_system_message: str = None) -> ChatGroq:
         print(f"[DEBUG] Creating Groq LLM with config: {cfg}")
-        base_system_message =  """ 
-        SEMPRE rispondi seguendo questo formato:
+        base_system_message = """
+        You must always follow this exact structure:
 
-            Thought: [Pensa a cosa devi fare]
-            Action: [Nome esatto del tool da usare, ad esempio "Email Sender"]
-            Action Input: {"recipient": "email", "subject": "oggetto", "body": "testo"}
-            Observation: [Risultato dell'azione]
-            
-            DOPO ogni Observation devi SEMPRE scrivere:
-            
+            Thought: [Think about what you need to do]
+            Action: [Exact name of the tool to use, e.g., "Email Sender"]
+            Action Input: {"recipient": "email", "subject": "subject", "body": "text"}
+            Observation: [Result of the action]
+
+            After each Observation you MUST immediately write:
+
             Thought: I now know the final answer
-            Final Answer: [Risposta finale da inviare all'utente]
-            
-            NON scrivere nulla fuori da questo schema. NON saltare nessuna parte. NON lasciare il Final Answer vuoto.
+            Final Answer: [Final response to send to the user]
+
+        Rules:
+        - Never write anything outside this structure.
+        - Never skip any step.
+        - Never leave the Final Answer empty.
+        - Always reason and respond in English internally.
         """
 
         if extra_system_message:
@@ -60,7 +64,16 @@ class LanguageMentor():
     def tip_agent(self) -> Agent:
         cfg = self.agents_config['tip_agent']
         llm = self._make_groq_llm(cfg,
-                                  extra_system_message="Quando l'utente specifica una lingua, devi SEMPRE rispondere esclusivamente in quella lingua.")
+            extra_system_message= """
+                                    You must write the message exclusively in English.
+                                    Provide a short motivational tip about learning the language {{ language }},
+                                    and a cultural fact related to {{ language }}.
+                                    Keep the text short, positive, and adapted to a {{ user_level }} user.
+                                    Do not write in {{ language }}, only in English.
+                                    Do not add any extra explanations or unrelated content.
+                            """
+                                  )
+
         return Agent(
             role=cfg['role'],
             goal=cfg['goal'],
