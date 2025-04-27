@@ -61,7 +61,6 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         self.quiz_screen.quiz_completed.connect(self.controller.add_exp)  # Aggiungi esperienza al completamento
         
         self.level_detection_screen.back_requested.connect(self.show_dashboard_screen)  # Return to dashboard
-        self.level_detection_screen.level_test_completed.connect(self.controller.process_level_test_results)  # Process test results
 
         # Connect signals from AppController back to UI (MainWindow or Screens)
         self.controller.user_loggedIn.connect(self._handle_user_loggedIn) # MainWindow handles screen switch/reset

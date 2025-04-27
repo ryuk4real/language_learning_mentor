@@ -260,40 +260,8 @@ class AppController(QObject):
             return
 
         self.status_message.emit("Preparing level test...")
-        threading.Thread(target=self._run_prepare_level_test_task, daemon=True).start()
+        threading.Thread(target=self._run_level_test_task, daemon=True).start()
 
-    def _run_prepare_level_test_task(self):
+    def _run_level_test_task(self):
         """Helper method to prepare level test data in a thread."""
-        try:
-            # Use language processor to prepare level test data, similar to quiz data
-            test_data = self.lang_processor.prepare_level_test_data(self._level, self._language)
-            self.level_test_data_ready.emit(test_data)
-            self.status_message.emit("Level test ready.")
-        except Exception as e:
-            self.status_message.emit(f"Error preparing level test: {e}")
-
-    def process_level_test_results(self, score):
-        """Processes level test results and analyzes user level."""
-        if not self._language:
-            self.status_message.emit("Error: No language selected.")
-            return
-
-        self.status_message.emit("Analyzing level...")
-        threading.Thread(target=self._run_analyze_level_task, args=(score,), daemon=True).start()
-
-    def _run_analyze_level_task(self, score):
-        """Helper method to analyze level test results."""
-        try:
-            result = self.lang_processor.analyze_level_test_result(score, self._level, self._language)
-            self.analysis_complete.emit(result)
-            
-            # Update user level if the estimated level is different
-            if result['estimated_level'] != self._level:
-                self._level = result['estimated_level']
-                self.save_user_state()
-                self.update_user_state_and_notify()
-                self.status_message.emit(f"Your language level has been updated to {self._level}!")
-            else:
-                self.status_message.emit("Level analysis complete. Your level remains the same.")
-        except Exception as e:
-            self.status_message.emit(f"Error analyzing level: {e}")
+        pass
