@@ -61,13 +61,15 @@ class LanguageMentor():
     @agent
     def level_detector(self) -> Agent:
         cfg = self.agents_config['level_detector']
-        llm = self._make_groq_llm(cfg)  # <- adesso va bene, extra_system_message è opzionale
+        llm = self._make_groq_llm(cfg)
         return Agent(
             role=cfg['role'],
             goal=cfg['goal'],
             backstory=cfg['backstory'],
             llm=llm,
             tools=[QuizCalculator()],
+            max_iter=7,  # Limits reasoning steps
+            max_retry_limit=1,  # Reduce retries
             verbose=True
         )
 
@@ -109,10 +111,12 @@ class LanguageMentor():
     @task
     def level_task(self) -> Task:
         task_cfg = self.tasks_config['level_task']
+        
         t = Task(
             description=task_cfg['description'],
             expected_output=task_cfg['expected_output'],
-            agent=self.level_detector()
+            agent=self.level_detector(),
+            output_file='level_assessment.json'
         )
         self.task_templates[t.description] = task_cfg.get('input_template')
         return t
