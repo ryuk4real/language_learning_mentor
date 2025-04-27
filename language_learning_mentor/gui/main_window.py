@@ -11,9 +11,8 @@ from logic.app_controller import AppController
 from gui.login_screen import LoginScreen
 from gui.dashboard_screen import DashboardScreen
 from gui.style_manager import StyleManager
-from gui.quiz_dialog import QuizDialog
-from gui.analysis_dialog import AnalysisDialog
-from gui.analysis_input_dialog import AnalysisInputDialog
+from gui.quiz_screen import QuizScreen
+from gui.level_detection_screen import LevelDetectionScreen
 
 class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status bar
     def __init__(self):
@@ -36,9 +35,13 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         # Create UI screens and add them to the stacked widget
         self.login_screen = LoginScreen()
         self.dashboard_screen = DashboardScreen()
+        self.quiz_screen = QuizScreen()  # Nuova schermata per il quiz
+        self.level_detection_screen = LevelDetectionScreen()  # Nuova schermata per il rilevatore di livello
 
-        self.stacked_widget.addWidget(self.login_screen)      # Index 0
-        self.stacked_widget.addWidget(self.dashboard_screen)   # Index 1
+        self.stacked_widget.addWidget(self.login_screen)         # Index 0
+        self.stacked_widget.addWidget(self.dashboard_screen)     # Index 1
+        self.stacked_widget.addWidget(self.quiz_screen)          # Index 2
+        self.stacked_widget.addWidget(self.level_detection_screen)  # Index 3
 
         # --- Connect Signals and Slots ---
 
@@ -49,10 +52,16 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         # Connect signals from DashboardScreen to AppController
         self.dashboard_screen.logout_requested.connect(self.controller.logout)
         self.dashboard_screen.theme_toggled.connect(self.controller.toggle_theme) # Dashboard requests toggle
-        self.dashboard_screen.level_detection_requested.connect(self.controller.detect_level)
-        self.dashboard_screen.quiz_requested.connect(self.controller.start_quiz)
+        self.dashboard_screen.quiz_requested.connect(self._show_quiz_screen)  # Modificato
         self.dashboard_screen.daily_tip_requested.connect(self.controller.request_daily_tip) # Dashboard requests tip
-        self.dashboard_screen.level_detection_requested.connect(self._show_analysis_input)
+        self.dashboard_screen.level_detection_requested.connect(self._show_level_detection_screen)  # Modificato
+
+        # Connect signals dalle nuove schermate
+        self.quiz_screen.back_requested.connect(self.show_dashboard_screen)  # Torna alla dashboard
+        self.quiz_screen.quiz_completed.connect(self.controller.add_exp)  # Aggiungi esperienza al completamento
+        
+        self.level_detection_screen.back_requested.connect(self.show_dashboard_screen)  # Return to dashboard
+        self.level_detection_screen.level_test_completed.connect(self.controller.process_level_test_results)  # Process test results
 
         # Connect signals from AppController back to UI (MainWindow or Screens)
         self.controller.user_loggedIn.connect(self._handle_user_loggedIn) # MainWindow handles screen switch/reset
@@ -62,18 +71,14 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         self.controller.status_message.connect(self._display_status_message) # Handle status (e.g., print or status bar)
         self.controller.tip_generated.connect(self.dashboard_screen.display_tip) # Dashboard displays tip
         self.controller.theme_changed.connect(self._apply_theme) # MainWindow applies themes
-        # Add connections for quiz data, analysis results, etc. when implemented
-        self.controller.quiz_data_ready.connect(self._handle_quiz_data_ready)
-        self.controller.analysis_complete.connect(self._handle_analysis_complete)
+
+        self.controller.level_test_data_ready.connect(self.level_detection_screen.start_test)
+        self.controller.analysis_complete.connect(self.level_detection_screen.show_analysis_results)
+        self.controller.quiz_data_ready.connect(self.quiz_screen.start_quiz)
+        self.controller.analysis_complete.connect(self.level_detection_screen.show_analysis_results)
 
         # --- Initial Setup ---
-        # Apply the theme loaded by the controller (default or from config)
-        # This needs the QApplication instance, so best done after QApplication is created in main.py
-        # The initial attempt_login call will trigger state loading and theme preference
-        # We'll handle applying the theme based on the state loaded *after* login attempt.
-
         # Show the login screen initially
-        # We don't call attempt_login here, the user has to type and click
         self.show_login_screen()
 
 
@@ -95,6 +100,22 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         self.stacked_widget.setCurrentWidget(self.dashboard_screen) # Show the dashboard widget
         # Request the first daily tip when showing the dashboard
         self.controller.request_daily_tip()
+    
+    def _show_quiz_screen(self):
+        """Passa alla schermata del quiz e avvia la preparazione."""
+        print("MainWindow: Switching to quiz screen.")
+        self.style_manager.apply_theme(self.controller.theme)
+        self.stacked_widget.setCurrentWidget(self.quiz_screen)
+        # Avvia la preparazione del quiz
+        self.controller.start_quiz()
+    
+    def _show_level_detection_screen(self):
+        """Passa alla schermata di rilevamento del livello."""
+        print("MainWindow: Switching to level detection screen.")
+        self.style_manager.apply_theme(self.controller.theme)
+        self.stacked_widget.setCurrentWidget(self.level_detection_screen)
+        # Resetta eventuali risultati precedenti
+        self.level_detection_screen.reset_screen()
 
 
     # --- Controller Signal Handlers ---
@@ -119,46 +140,15 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
          # If using QMainWindow, you'd update a status bar here:
          # self.statusBar().showMessage(message)
 
-
-    # --- Add handlers for other controller signals (quiz_data_ready, analysis_complete) ---
-    # def _handle_quiz_data_ready(self, quiz_data):
-    #    print("MainWindow: Received quiz_data_ready signal.")
-    #    # Logic to display the quiz UI, e.g., open a new QuizDialog(quiz_data, self.controller)
-    #    QMessageBox.information(self, "Quiz Data Ready", f"Received {len(quiz_data)} quiz questions. UI needs to show this.")
-
-    # def _handle_analysis_complete(self, analysis_result):
-    #    print("MainWindow: Received analysis_complete signal.")
-    #    # Logic to display the analysis results, e.g., in a message box or dialog
-    #    feedback = analysis_result.get("feedback", "No feedback.")
-    #    level = analysis_result.get("estimated_level", "Unknown")
-    #    QMessageBox.information(self, "Analysis Complete", f"Feedback:\n{feedback}\nEstimated Level: {level}")
-
-
-    # --- Add handlers for UI signals that MainWindow needs to process directly (less common) ---
-    # Example: If a button on MainWindow itself needed handling, but we've moved them to DashboardScreen
-
     def _apply_theme(self, theme):
         """Applies the theme when it changes."""
         print(f"MainWindow: Applying {theme} theme")
         self.style_manager.apply_theme(theme)
-    
-    def _handle_quiz_data_ready(self, quiz_data):
-        """Apre il dialog del quiz quando i dati sono pronti."""
-        dlg = QuizDialog(quiz_data, parent=self)
-        dlg.exec()
 
-    def _handle_analysis_complete(self, analysis_result):
-        """Apre il dialog di analisi al termine."""
-        dlg = AnalysisDialog(analysis_result, parent=self)
-        dlg.exec()
-
-    def _show_analysis_input(self):
-        """Apri il dialog per l'input del testo da analizzare."""
-        # qui c'era placeholder
-        dlg = AnalysisInputDialog(self)
-        if dlg.exec() == QDialog.Accepted:
-            text = dlg.get_text()
-            if text:
-                self.controller.detect_level(text)
-            else:
-                QMessageBox.warning(self, "Testo mancante", "Devi inserire un testo da analizzare.")
+    def _show_level_detection_screen(self):
+        """Switch to level detection screen and start preparation."""
+        print("MainWindow: Switching to level detection screen.")
+        self.style_manager.apply_theme(self.controller.theme)
+        self.stacked_widget.setCurrentWidget(self.level_detection_screen)
+        # Start level test preparation
+        self.controller.start_level_detection()
