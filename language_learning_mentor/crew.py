@@ -6,14 +6,24 @@ from pathlib import Path
 from langchain_groq import ChatGroq
 import yaml
 from dotenv import load_dotenv
+import os
 
 @CrewBase
 class LanguageMentor():
     """Language Learning Mentor Crew"""
     def __init__(self):
         load_dotenv()
-        self.agents_config = yaml.safe_load(Path('config/agents.yaml').read_text())
-        self.tasks_config = yaml.safe_load(Path('config/tasks.yaml').read_text())
+        
+        # Get the directory where this script is located
+        script_dir = Path(__file__).resolve().parent
+        
+        # Define paths relative to the script's location
+        agents_config_path = script_dir.parent / "language_learning_mentor" / "config" / "agents.yaml"
+        tasks_config_path = script_dir.parent / "language_learning_mentor" / "config" / "tasks.yaml"
+        
+        # Load YAML files
+        self.agents_config = yaml.safe_load(agents_config_path.read_text())
+        self.tasks_config = yaml.safe_load(tasks_config_path.read_text())
         self.task_templates = {}
 
     def _make_groq_llm(self, cfg: dict, extra_system_message: str = None) -> ChatGroq:

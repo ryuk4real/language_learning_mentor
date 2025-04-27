@@ -15,6 +15,7 @@ groq = "^0.22.0"
 langchain-community = "^0.3.21"
 langchain-core = "^0.3.54"
 langchain-groq = "^0.3.2"
+pyside6 = "^6.9.0"
 
 
 [build-system]
