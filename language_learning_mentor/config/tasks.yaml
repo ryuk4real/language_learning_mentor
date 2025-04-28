@@ -1,63 +1,29 @@
 level_task:
-  description: "Generate an adaptive language proficiency quiz in {{ language }} to determine user's level from Beginner to Master"
+  description: "Generate a fill-in-the-blank question based on the user's score."
   input_template: |
-    Create a {{ num_questions }}-question quiz in {{ language }} based on initial assessment data:
-    - Initial score: {{ initial_score }} (0-100 scale)
-    - Target language: {{ language }}
-    - User background: {{ user_background | default('not specified') }}
+    Create a single fill-in-the-blank question in {{ language }} based on the user's {{ score }}.
 
-    Difficulty Scaling Guide:
-    | Score Range | Level           | Question Characteristics                  |
-    |-------------|-----------------|-------------------------------------------|
-    | 0-15        | Beginner        | Basic vocabulary, simple sentences        |
-    | 16-35       | Pre-Intermediate| Common expressions, basic tenses          |
-    | 36-60       | Intermediate    | Complex sentences, some idioms            |
-    | 61-80       | Pre-Advanced    | Abstract concepts, technical terms        |
-    | 81-95       | Advanced        | Specialized vocabulary, nuanced meaning   |
-    | 96-100      | Master          | Near-native complexity, cultural context |
+    Use this Difficulty Scaling Guide:
+    | Score Range | Level            | Question Characteristics                  |
+    |-------------|------------------|-------------------------------------------|
+    | 0-15        | Beginner          | Basic vocabulary, simple sentences        |
+    | 16-35       | Pre-Intermediate  | Common expressions, basic tenses          |
+    | 36-60       | Intermediate      | Complex sentences, some idioms            |
+    | 61-80       | Pre-Advanced      | Abstract concepts, technical terms        |
+    | 81-95       | Advanced          | Specialized vocabulary, nuanced meaning   |
+    | 96-100      | Master            | Near-native complexity, cultural context  |
 
-    Required JSON Structure:
-    {
-      "quiz": [
-        {
-          "question": "Question text in {{ language }}",
-          "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-          "correct_index": 0,
-          "level": "Beginner/Pre-Intermediate/Intermediate/Pre-Advanced/Advanced/Master",
-          "type": "grammar/vocabulary/comprehension"
-        }
-      ],
-      "scoring": {
-        "base_points": 5,
-        "level_multipliers": {
-          "Beginner": 1.0,
-          "Pre-Intermediate": 1.3,
-          "Intermediate": 1.6,
-          "Pre-Advanced": 1.9,
-          "Advanced": 2.2,
-          "Master": 2.5
-        }
-      },
-      "metadata": {
-        "target_language": "{{ language }}",
-        "estimated_level": "Calculated from initial_score",
-        "level_probes": [1, 3]  // indexes of questions testing next level
-      }
-    }
+    For the output:
+    - Provide a 'sentence': a complete sentence in {{ language }} with **one missing word**, indicated by '____'.
+    - Provide 4 options (all in {{ language }}) to fill in the blank.
+    - Mark the correct answer by its zero-based index (0, 1, 2, or 3).
 
-    Critical Rules:
-    1. Include 2-3 questions from adjacent levels
-    2. All content must be in {{ language }}
-    3. Never make questions harder than Master level
-    4. Validate JSON structure before submission
-    5. Mark level probes in metadata
-  expected_output: |
-    A valid JSON object containing:
-    - {{ num_questions }} quiz questions with 4 options each
-    - Clear difficulty level tagging for each question
-    - Complete scoring system with level multipliers
-    - Metadata identifying target level and probe questions
-    - All content in {{ language }} only
+    Important rules:
+    - Do not explain the answer.
+    - Keep the sentence structure, vocabulary, and complexity appropriate for the score's corresponding level.
+    - Format the response strictly as valid JSON.
+  expected_output: "A valid JSON object containing 'sentence', 'options', and 'correct_answer'."
+
 
 tip_task:
   description: "Send a daily language learning tip fact to the user."
@@ -73,6 +39,7 @@ tip_task:
     - Do not add extra explanations or apologies.
     - Try to search for interesting topics that are not too common, vocabulary that you can use in daily life.
     - You must follow the user's language level, so if the user is a beginner, do not use complex grammar or vocabulary. Follow this table:
+
     | Level           | Level Characteristics                     |
     |-----------------|-------------------------------------------|
     | Beginner        | Basic vocabulary, simple sentences        |
@@ -81,20 +48,34 @@ tip_task:
     | Pre-Advanced    | Abstract concepts, technical terms        |
     | Advanced        | Specialized vocabulary, nuanced meaning   |
     | Master          | Near-native complexity, cultural context  |
-
-
   expected_output: "A short motivational tip regarding learning, or vocabulary or grammar of {{language}}, answer fully in English."
 
 quiz_task:
-  description: "Create and evaluate a language quiz for the user."
+  description: "Create and evaluate multiple language quizzes for the user."
   input_template: |
-    Create a multiple-choice quiz entirely in {{ language }} with {{ num_questions }} questions.
-    For each question:
-    - Provide 4 options (all in {{ language }}).
-    - Clearly mark the correct answer using the zero-based index (0, 1, 2, or 3).
+    Create {{ num_quizzes }} multiple-choice quizzes entirely in {{ language }}, each containing {{ num_questions }} questions.
+
+    For each question in each quiz:
+    - Provide a 'sentence': a complete sentence in {{ language }} with **one missing word**, indicated by '____'.
+    - Provide 4 options (all in {{ language }}) to fill in the blank.
+    - Mark the correct answer by its zero-based index (0, 1, 2, or 3).
+
+    The quizzes must match the {{ user_level }} according to these guidelines:
+    | Level            | Characteristics                                 |
+    |------------------|--------------------------------------------------|
+    | Beginner         | Basic vocabulary, very simple sentences         |
+    | Pre-Intermediate | Common expressions, basic tenses                |
+    | Intermediate     | More complex sentences, some idiomatic usage    |
+    | Pre-Advanced     | Abstract ideas, technical terms introduced      |
+    | Advanced         | Specialized vocabulary, nuanced meaning         |
+    | Master           | Near-native complexity, cultural or literary references |
 
     Important rules:
     - Do not explain answers, only provide the JSON structure.
-    - Keep the language appropriate for a {{ user_level }} learner.
+    - Keep the language, sentence structure, and vocabulary appropriate for the {{ user_level }}.
     - Format the response strictly as valid JSON.
-  expected_output: "A valid JSON containing questions, options, and correct answers."
+    - The JSON must contain exactly {{ num_quizzes }} arrays, each array containing {{ num_questions }} question objects.
+  expected_output: "A valid JSON array containing {{ num_quizzes }} arrays, each with {{ num_questions }} questions, where each question has 'sentence', 'options', and 'correct_answer'."
+
+
+
