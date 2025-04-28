@@ -1,147 +1,121 @@
+# gui/style_manager.py
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication # Needed to apply palette
+from PySide6.QtWidgets import QApplication
 
 class StyleManager:
-    """Handles creating and applying color palettes for themes."""
+    """Gestisce palette tema chiaro/scuro e un foglio di stile QSS globale."""
 
     def __init__(self):
         self._light_palette = self._create_light_palette()
-        self._dark_palette = self._create_dark_palette()
+        self._dark_palette  = self._create_dark_palette()
+        self._common_qss    = self._build_common_qss()
 
+    # ------------------------------------------------------------------ PALETTE
     def _create_light_palette(self):
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(240, 240, 240)) # Background
-        palette.setColor(QPalette.WindowText, Qt.black)
-        palette.setColor(QPalette.Base, Qt.white) # TextEdit, LineEdit background
-        palette.setColor(QPalette.Text, Qt.black) # TextEdit, LineEdit foreground
-        palette.setColor(QPalette.Button, QColor(200, 200, 200)) # Button background
-        palette.setColor(QPalette.ButtonText, Qt.black) # Button text
-        palette.setColor(QPalette.Highlight, QColor(48, 140, 198)) # Selection color
-        palette.setColor(QPalette.HighlightedText, Qt.white)
-        # Add more roles as needed
-        return palette
+        p = QPalette()
+        p.setColor(QPalette.Window, QColor(248, 248, 248))
+        p.setColor(QPalette.WindowText, Qt.black)
+        p.setColor(QPalette.Base, Qt.white)
+        p.setColor(QPalette.Text, Qt.black)
+        p.setColor(QPalette.Button, QColor(220, 220, 220))
+        p.setColor(QPalette.ButtonText, Qt.black)
+        p.setColor(QPalette.Highlight, QColor(48, 140, 198))
+        p.setColor(QPalette.HighlightedText, Qt.white)
+        return p
 
     def _create_dark_palette(self):
-        palette = QPalette()
-        dark_gray = QColor(53, 53, 53)
-        light_gray = QColor(180, 180, 180)
-        mid_gray = QColor(68, 68, 68)
-        dark_blue = QColor(42, 130, 218) # Highlight color
+        p = QPalette()
+        dark  = QColor(45, 45, 45)
+        mid   = QColor(70, 70, 70)
+        light = QColor(200, 200, 200)
+        p.setColor(QPalette.Window, dark)
+        p.setColor(QPalette.WindowText, light)
+        p.setColor(QPalette.Base, mid.darker(150))
+        p.setColor(QPalette.AlternateBase, mid)
+        p.setColor(QPalette.Text, light)
+        p.setColor(QPalette.Button, mid)
+        p.setColor(QPalette.ButtonText, dark)
+        p.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        p.setColor(QPalette.HighlightedText, Qt.black)
+        p.setColor(QPalette.Disabled, QPalette.Text, light.darker(140))
+        p.setColor(QPalette.Disabled, QPalette.ButtonText, light.darker(140))
+        return p
 
-        palette.setColor(QPalette.Window, dark_gray) # Background
-        palette.setColor(QPalette.WindowText, light_gray)
-        palette.setColor(QPalette.Base, mid_gray.darker(150)) # TextEdit, LineEdit background
-        palette.setColor(QPalette.AlternateBase, mid_gray) # Alternate rows in lists/tables
-        palette.setColor(QPalette.ToolTipBase, dark_gray)
-        palette.setColor(QPalette.ToolTipText, light_gray)
-        palette.setColor(QPalette.Text, light_gray) # TextEdit, LineEdit foreground
-        palette.setColor(QPalette.Button, mid_gray) # Button background
-        palette.setColor(QPalette.ButtonText, light_gray) # Button text
-        palette.setColor(QPalette.BrightText, Qt.red) # Used for errors etc.
-        palette.setColor(QPalette.Link, dark_blue.lighter()) # Link text color
-        palette.setColor(QPalette.Highlight, dark_blue) # Selection color
-        palette.setColor(QPalette.HighlightedText, Qt.black)
+    # ------------------------------------------------------------------ QSS
+    def _build_common_qss(self):
+        """Restituisce un foglio di stile comune a entrambi i temi."""
+        return """
+        QWidget {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 12px;
+        }
 
-        # Disabled colors
-        disabled_color = light_gray.darker(150)
-        palette.setColor(QPalette.Disabled, QPalette.Text, disabled_color)
-        palette.setColor(QPalette.Disabled, QPalette.ButtonText, disabled_color)
-        palette.setColor(QPalette.Disabled, QPalette.WindowText, disabled_color)
-        # ... add other disabled roles if necessary
+        QPushButton {
+            border-radius: 6px;
+            padding: 6px 12px;
+            border: 1px solid #8f8f8f;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                       stop:0 #f6f7fa, stop:1 #dadbde);
+        }
+        QPushButton:hover   { background-color: #e1ecf4; }
+        QPushButton:pressed { background-color: #c6d4e1; }
 
-        return palette
+        QLineEdit, QTextEdit {
+            border: 1px solid #b0b0b0;
+            border-radius: 4px;
+            padding: 4px;
+        }
 
-    def apply_theme(self, theme_preference):
-        """Applies the specified theme palette to the application."""
+        QGroupBox {
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 3px 0 3px;
+        }
+        """
+
+    # ------------------------------------------------------------------ APPLY
+    def apply_theme(self, theme_preference: str):
+        """Applica la palette e il foglio di stile."""
         app = QApplication.instance()
         if not app:
-            print("Warning: QApplication instance not found. Cannot apply theme.")
+            print("Warning: QApplication instance not found.")
             return
 
         if theme_preference == 'dark':
             print("Applying dark theme.")
             app.setPalette(self._dark_palette)
-        else: # Default to light
+        else:
             print("Applying light theme.")
             app.setPalette(self._light_palette)
 
-    def get_palette(self, theme_preference):
-         """Returns the palette object for a given theme preference."""
-         if theme_preference == 'dark':
-             return self._dark_palette
-         else:
-             return self._light_palette
-         
+        # Il QSS è identico per entrambi i temi
+        app.setStyleSheet(self._common_qss)
+
+    # ------------------------------------------------------------------ EXTRA
+    def get_palette(self, theme_preference: str):
+        """Ritorna la palette corrispondente al tema richiesto."""
+        return self._dark_palette if theme_preference == 'dark' else self._light_palette
+
     def get_system_theme(self):
-        """Detects whether the system is using a dark or light theme in a cross-platform way."""
-        from PySide6.QtCore import QOperatingSystemVersion, QSysInfo
-        
-        # Default to light theme if detection fails
-        default_theme = 'light'
-        
+        """
+        Prova a rilevare il tema di sistema; ritorna 'light' se non determinabile.
+        Puoi specializzarla ulteriormente per il tuo OS.
+        """
+        from PySide6.QtCore import QSysInfo
+        platform_name = QSysInfo.productType().lower()
         try:
-            # Method 1: Check for specific platform indicators
-            platform_name = QSysInfo.productType().lower()
-            
             if 'windows' in platform_name:
-                # Windows-specific theme detection
-                try:
-                    import winreg
-                    registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
-                    key_path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-                    key = winreg.OpenKey(registry, key_path)
-                    # AppsUseLightTheme = 0 means dark theme
-                    value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-                    return 'light' if value == 1 else 'dark'
-                except Exception as e:
-                    print(f"Windows theme detection error: {e}")
-                    
-            elif any(x in platform_name for x in ['linux', 'unix']):
-                # Linux theme detection via environment variables or gsettings
-                try:
-                    # Try gsettings for GNOME/GTK-based desktops
-                    import subprocess
-                    try:
-                        result = subprocess.run(
-                            ['gsettings', 'get', 'org.gnome.desktop.interface', 'color-scheme'],
-                            capture_output=True, text=True, timeout=1
-                        )
-                        output = result.stdout.strip().lower()
-                        if 'dark' in output:
-                            return 'dark'
-                        elif 'light' in output or 'default' in output:
-                            return 'light'
-                    except (subprocess.SubprocessError, FileNotFoundError):
-                        pass  # gsettings not available or command failed
-                    
-                    # Fallback check for common environment variables
-                    import os
-                    desktop_env = os.environ.get('XDG_CURRENT_DESKTOP', '').lower()
-                    if desktop_env:
-                        if 'kde' in desktop_env:
-                            # Try KDE specific method
-                            try:
-                                result = subprocess.run(
-                                    ['kreadconfig5', '--group', 'General', '--key', 'ColorScheme', '--file', 'kdeglobals'],
-                                    capture_output=True, text=True, timeout=1
-                                )
-                                output = result.stdout.strip().lower()
-                                return 'dark' if 'dark' in output else 'light'
-                            except (subprocess.SubprocessError, FileNotFoundError):
-                                pass  # kreadconfig5 not available
-                except Exception as e:
-                    print(f"Linux theme detection error: {e}")
-            
-            # Method 2: Fallback using application palette comparison
-            from PySide6.QtGui import QGuiApplication
-            palette = QGuiApplication.palette()
-            window_color = palette.color(palette.Window)
-            text_color = palette.color(palette.WindowText)
-            
-            # If text is lighter than background, likely dark mode
-            return 'dark' if text_color.lightness() > window_color.lightness() else 'light'
-            
-        except Exception as e:
-            print(f"Theme detection error: {e}")
-            return default_theme
+                import winreg
+                reg = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
+                key = winreg.OpenKey(reg, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                return 'light' if value == 1 else 'dark'
+        except Exception:
+            pass
+        return 'light'

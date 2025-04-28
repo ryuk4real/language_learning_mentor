@@ -136,12 +136,23 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         else: # Logout case
              self.show_login_screen() # Go back to login on logout
 
-    def _display_status_message(self, message):
-         """Handles status messages from the controller."""
-         print(f"STATUS: {message}")
-         # If using QMainWindow, you'd update a status bar here:
-         # self.statusBar().showMessage(message)
+        # --- Controller Signal Handlers ---
 
+    def _display_status_message(self, message):
+        """Visual feedback for every status message."""
+        print(f"STATUS: {message}")  # console for dev
+
+        # Most messages should also reach the user clearly in GUI
+        if "error" in message.lower() or "please" in message.lower() \
+                or "not found" in message.lower():
+            QMessageBox.warning(self, "Notice", message,
+                                QMessageBox.StandardButton.Ok)
+        else:
+            # Use “information” pop-up for neutral/positive messages
+            QMessageBox.information(self, "Info", message,
+
+
+                                    QMessageBox.StandardButton.Ok)
     def _apply_theme(self, theme):
         """Applies the theme when it changes."""
         print(f"MainWindow: Applying {theme} theme")

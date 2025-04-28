@@ -71,9 +71,11 @@ class LoginScreen(QWidget):
         layout.addSpacing(10)
 
         # — Email (hidden until registration) —
+        email_row = QHBoxLayout()  # ➜ CHANGED
         self.email_label = QLabel("Email:")
         self.email_label.setVisible(False)
-        layout.addWidget(self.email_label, alignment=Qt.AlignCenter)
+        email_row.addWidget(self.email_label)
+
 
         self.email_entry = QLineEdit()
         self.email_entry.setPlaceholderText("Enter your email")
@@ -81,6 +83,7 @@ class LoginScreen(QWidget):
         self.email_entry.setVisible(False)
         layout.addWidget(self.email_entry, alignment=Qt.AlignCenter)
 
+        layout.addLayout(email_row)
         layout.addSpacing(20)
 
         # — Buttons —
