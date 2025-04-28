@@ -1,9 +1,12 @@
+from datetime import date
+
 from PySide6.QtCore import QObject, Signal, QMetaObject, Q_ARG, Qt
 import threading
 import time
 
-from logic.config_manager import load_user_config, save_user_config
+from logic.config_manager import load_user_config, save_user_config, get_config_path
 from logic.language_processor import LanguageProcessor
+
 
 class AppController(QObject):
     """
@@ -28,6 +31,10 @@ class AppController(QObject):
         self._progress = 0
         self._level = "Beginner"
         self._theme = 'light'
+
+        self._email = None
+        self._last_tip_date = None  # ISO string “YYYY-MM-DD”
+        self._last_tip_text = None
 
         self.lang_processor = LanguageProcessor()
 
@@ -68,6 +75,10 @@ class AppController(QObject):
 
         if config_data:
             self._username = sanitized_username
+            self._email = config_data.get('email')
+            self._last_tip_date = config_data.get('last_tip_date')
+            self._last_tip_text = config_data.get('last_tip_text')
+
             self._language = config_data.get('language')
             self._progress = config_data.get('progress', 0)
             self._level = config_data.get('level', 'Beginner')
@@ -84,19 +95,41 @@ class AppController(QObject):
                 self.show_language_selection.emit()
                 self.status_message.emit(f"Welcome back, {self._username}! Please select a language.")
         else:
-            self._username = sanitized_username
-            self._language = None
-            self._progress = 0
-            self._level = "Beginner"
-            self._theme = 'light'
-
-            self.save_user_state()
-            self.user_loggedIn.emit(self._username)
-            self.update_user_state_and_notify()
-            self.show_language_selection.emit()
-            self.status_message.emit(f"Welcome, {self._username}! Please select a language to begin.")
+            self.status_message.emit("User not found. Please register.")
+            return False
 
         return True
+
+
+    def register_user(self, username, email):
+        """Handle explicit user registration (collects email)."""
+        sanitized = username.strip().lower()
+        if not sanitized or not email.strip():
+            self.status_message.emit("Nickname and email are required.")
+            return False
+
+        cfg_path = get_config_path(sanitized)
+        if cfg_path.exists():
+            self.status_message.emit("User already exists. Please log in.")
+            return False
+
+        # set up new user
+        self._username = username.strip()
+        self._email = email.strip()
+        self._language = None
+        self._progress = 0
+        self._level = "Beginner"
+        self._theme = 'light'
+        self._last_tip_date = None
+        self._last_tip_text = None
+
+        self.save_user_state()
+        self.user_loggedIn.emit(self._username)
+        self.update_user_state_and_notify()
+        self.show_language_selection.emit()
+        self.status_message.emit(f"Welcome, {self._username}! Please select a language.")
+        return True
+
 
     def process_language_selection(self, selected_language):
         """Handles a new user selecting a language."""
@@ -120,10 +153,13 @@ class AppController(QObject):
         if not self._username:
             return
         save_user_config(self._username, {
+            'email': self._email,
             'language': self._language,
             'progress': self._progress,
             'level': self._level,
             'theme': self._theme,
+            'last_tip_date': self._last_tip_date,
+            'last_tip_text': self._last_tip_text,
         })
 
     def update_user_state_and_notify(self):
@@ -150,26 +186,44 @@ class AppController(QObject):
         self.user_loggedIn.emit("")
         self.status_message.emit("Logged out.")
 
+
+
     def request_daily_tip(self):
-        """Requests a daily tip from the language processor."""
+        """Requests a daily tip, but only once per calendar day."""
         if not self._language:
             self.status_message.emit("Please select a language to get a tip.")
             self.tip_generated.emit("Please select a language first!")
             return
 
-        self.status_message.emit("Generating tip...")
-        self.tip_generated.emit("🧠 Generating tip...")
+        today = date.today().isoformat()
+        if self._last_tip_date == today and self._last_tip_text:
+            # reuse cached tip
+            self.tip_generated.emit(self._last_tip_text)
+            self.status_message.emit("Loaded today’s tip.")
+            return
+
+        # generate a fresh tip
+        self.status_message.emit("Generating tip…")
+        self.tip_generated.emit("🧠 Generating tip…")
         threading.Thread(target=self._run_tip_generation_task, daemon=True).start()
 
+
     def _run_tip_generation_task(self):
-        """Helper method to run tip generation in a thread."""
+        """Generate the tip in a background thread and cache it."""
         try:
             tip = self.lang_processor.generate_daily_tip(self._level, self._language)
+            today = date.today().isoformat()
+            self._last_tip_date = today
+            self._last_tip_text = tip
+            self.save_user_state()
+
             self.tip_generated.emit(tip)
             self.status_message.emit("Tip generated.")
         except Exception as e:
             self.tip_generated.emit(f"Error: {e}")
             self.status_message.emit("Error generating tip.")
+
+
 
     def start_quiz(self):
         """Initiates the process of starting a quiz."""

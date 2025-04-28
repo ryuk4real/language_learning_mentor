@@ -81,10 +81,6 @@ class DashboardScreen(QWidget):
         self.tip_textbox.setFixedHeight(80)
         tip_layout.addWidget(self.tip_textbox)
 
-        # Add a button to get a new tip
-        get_tip_button = QPushButton("Get New Tip")
-        get_tip_button.clicked.connect(self.daily_tip_requested.emit)
-        tip_layout.addWidget(get_tip_button, alignment=Qt.AlignRight)
 
         layout.addWidget(tip_groupbox)
 

@@ -47,13 +47,16 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
 
         # Connect signals from LoginScreen to AppController
         self.login_screen.login_attempted.connect(self.controller.attempt_login)
+
+        self.login_screen.register_requested.connect(self.controller.register_user)
+
         self.login_screen.language_selected.connect(self.controller.process_language_selection)
 
         # Connect signals from DashboardScreen to AppController
         self.dashboard_screen.logout_requested.connect(self.controller.logout)
         self.dashboard_screen.theme_toggled.connect(self.controller.toggle_theme) # Dashboard requests toggle
         self.dashboard_screen.quiz_requested.connect(self._show_quiz_screen)  # Modificato
-        self.dashboard_screen.daily_tip_requested.connect(self.controller.request_daily_tip) # Dashboard requests tip
+
         self.dashboard_screen.level_detection_requested.connect(self._show_level_detection_screen)  # Modificato
 
         # Connect signals dalle nuove schermate
