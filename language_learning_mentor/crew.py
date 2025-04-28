@@ -106,6 +106,7 @@ class LanguageMentor():
             * Mention something specific about {{ language }} (a new word to learn, a verb, sound, cultural
               fact, spelling trick, etc.).
             * Keep it friendly and upbeat; max three sentences.
+            * Keep it short; be clear and concise, but still creative in the generation of new infos.
             * Be creative and use topics that are useful for the user in their daily life.
             * Do NOT add greetings, apologies, hashtags, lists or markdown.
             * Respond **only** in the form:

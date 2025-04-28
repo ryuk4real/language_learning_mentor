@@ -64,14 +64,25 @@ tip_task:
   input_template: |
     Write a very short, motivational tip for language learning. It can either be something about grammar or vocabulary.
     It must be written in English, and must relate to the language the user is learning: {{ language }}.
-    Adjust the tone and difficulty to match a {{ user_level }} user.
+    Adjust the tone and difficulty to match a {{ user_level }} user, so increase the complexity for higher levels.
     Important rules:
     - Only write in English, even if the language learned is different.
-    - The topic must concern the language the user is learning, {{ language }}.
-    - Keep it under three sentences total.
+    - The topic MUST concern the language the user is learning, {{ language }}.
+    - Keep it UNDER three sentences total, use a maximum of 250 characters without trimming any words, be concise and to the point.
     - Be positive and motivational.
     - Do not add extra explanations or apologies.
     - Try to search for interesting topics that are not too common, vocabulary that you can use in daily life.
+    - You must follow the user's language level, so if the user is a beginner, do not use complex grammar or vocabulary. Follow this table:
+    | Level           | Level Characteristics                     |
+    |-----------------|-------------------------------------------|
+    | Beginner        | Basic vocabulary, simple sentences        |
+    | Pre-Intermediate| Common expressions, basic tenses          |
+    | Intermediate    | Complex sentences, some idioms            |
+    | Pre-Advanced    | Abstract concepts, technical terms        |
+    | Advanced        | Specialized vocabulary, nuanced meaning   |
+    | Master          | Near-native complexity, cultural context  |
+
+
   expected_output: "A short motivational tip regarding learning, or vocabulary or grammar of {{language}}, answer fully in English."
 
 quiz_task:
