@@ -62,7 +62,7 @@ level_task:
 tip_task:
   description: "Send a daily language learning tip fact to the user."
   input_template: |
-    Write a very short, motivational tip for language learning. It can be something about grammar or vocabulary.
+    Write a very short, motivational tip for language learning. It can either be something about grammar or vocabulary.
     It must be written in English, and must relate to the language the user is learning: {{ language }}.
     Adjust the tone and difficulty to match a {{ user_level }} user.
     Important rules:
@@ -71,7 +71,7 @@ tip_task:
     - Keep it under three sentences total.
     - Be positive and motivational.
     - Do not add extra explanations or apologies.
-
+    - Try to search for interesting topics that are not too common, vocabulary that you can use in daily life.
   expected_output: "A short motivational tip regarding learning, or vocabulary or grammar of {{language}}, answer fully in English."
 
 quiz_task:
@@ -86,5 +86,4 @@ quiz_task:
     - Do not explain answers, only provide the JSON structure.
     - Keep the language appropriate for a {{ user_level }} learner.
     - Format the response strictly as valid JSON.
-
   expected_output: "A valid JSON containing questions, options, and correct answers."
