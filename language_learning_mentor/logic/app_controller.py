@@ -243,27 +243,6 @@ class AppController(QObject):
         except Exception as e:
             self.status_message.emit(f"Error preparing quiz: {e}")
 
-    def detect_level(self, user_text: str):
-        """Receives user text and sends it for background analysis."""
-        if not self._language:
-            self.status_message.emit("Select a language first.")
-            return
-        if not user_text.strip():
-            self.status_message.emit("Insert a text first.")
-            return
-
-        self.status_message.emit("Analyzing proficiency…")
-        threading.Thread(target=self._run_analyze_proficiency_task, args=(user_text,), daemon=True).start()
-
-    def _run_analyze_proficiency_task(self, text_sample):
-        """Helper method to analyze proficiency in a thread."""
-        try:
-            result = self.lang_processor.analyze_proficiency(text_sample, self._level, self._language)
-            self.analysis_complete.emit(result)
-            self.status_message.emit("Analysis complete.")
-        except Exception as e:
-            self.status_message.emit(f"Error analyzing proficiency: {e}")
-
     def add_exp(self, amount):
         """Adds experience points to the user's progress."""
         if not self._username or amount < 0:
@@ -298,8 +277,9 @@ class AppController(QObject):
         main_window.dashboard.level_detection_requested.connect(self.start_level_detection)
         main_window.quiz_screen.quiz_completed.connect(self.process_quiz_results)
         main_window.level_detection_screen.analyze_requested.connect(self.detect_level)
-        self.analysis_complete.connect(main_window.level_detection_screen.show_analysis_results)
         self.quiz_data_ready.connect(main_window.quiz_screen.start_quiz)
+        self.level_test_data_ready.connect(main_window.level_detection_screen.start_test)
+
 
     def process_quiz_results(self, score):
         """Processes quiz results and awards EXP."""
@@ -318,4 +298,9 @@ class AppController(QObject):
 
     def _run_level_test_task(self):
         """Helper method to prepare level test data in a thread."""
-        pass
+        try:
+            test = self.lang_processor.prepare_detect_quiz(self._language)
+            self.level_test_data_ready.emit(test)
+            self.status_message.emit("Analysis complete.")
+        except Exception as e:
+            self.status_message.emit(f"Error analyzing proficiency: {e}")

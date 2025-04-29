@@ -300,8 +300,141 @@ class LanguageProcessor:
         # Trim to requested number of questions
         return quiz[:num_questions]
 
-    def analyze_proficiency(self, user_language: str) -> dict:
+    def prepare_detect_quiz(self, user_language: str) -> dict:
         """
         Analyze language proficiency using the level_detector agent inside a Crew.
         """
-        pass
+        level_task = self.language_crew.level_task()
+        
+        try:
+            response = self._run_single_task(
+                level_task,
+                input_variables={
+                    "language": user_language,
+                    "task": "Create a language quiz to detect the user's level"
+                }
+            )
+
+            try:
+                quiz_data = json.loads(response)
+                # Validate quiz data structure
+                if not self._validate_quiz_data(quiz_data):
+                    raise ValueError("Invalid quiz data structure")
+                return quiz_data
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"Error processing quiz data: {e}")
+                return self._generate_fallback_detect_quiz(user_language)
+        except Exception as e:
+            print(f"Error calling quiz agent: {e}")
+            return self._generate_fallback_detect_quiz(user_language)
+        
+    def _generate_fallback_detect_quiz(self, user_language, num_questions=6):
+        """
+        Generates a fallback quiz with generic questions for the specified language.
+        Each language has a fixed set of diverse difficulty questions (no level labels).
+        """
+        fallback_quizzes = {
+            "Italian": [
+                {
+                    "question": "What is 'hello' in Italian?",
+                    "options": ["Ciao", "Arrivederci", "Grazie", "Scusa"],
+                    "answer": "Ciao"
+                },
+                {
+                    "question": "What is the correct translation for 'Good morning'?",
+                    "options": ["Buona sera", "Buona notte", "Buongiorno", "Buon appetito"],
+                    "answer": "Buongiorno"
+                },
+                {
+                    "question": "Choose the correct form: 'I eat' in Italian",
+                    "options": ["Io mangio", "Tu mangi", "Lui mangia", "Noi mangiamo"],
+                    "answer": "Io mangio"
+                },
+                {
+                    "question": "What is the Italian term for 'environmental sustainability'?",
+                    "options": ["Sostenibilità ambientale", "Energia rinnovabile", "Risparmio energetico", "Impatto ambientale"],
+                    "answer": "Sostenibilità ambientale"
+                },
+                {
+                    "question": "What is a synonym of 'velocemente' in Italian?",
+                    "options": ["Lentamente", "Rapidamente", "Tranquillamente", "Facilmente"],
+                    "answer": "Rapidamente"
+                },
+                {
+                    "question": "In Italian, 'piantare in asso' means:",
+                    "options": ["Abbandonare qualcuno", "Iniziare un progetto", "Aiutare una persona", "Fare pace"],
+                    "answer": "Abbandonare qualcuno"
+                }
+            ],
+            "Spanish": [
+                {
+                    "question": "What is 'hello' in Spanish?",
+                    "options": ["Hola", "Adiós", "Gracias", "Por favor"],
+                    "answer": "Hola"
+                },
+                {
+                    "question": "What is the correct translation for 'Good morning'?",
+                    "options": ["Buenas tardes", "Buenas noches", "Buenos días", "Buen provecho"],
+                    "answer": "Buenos días"
+                },
+                {
+                    "question": "Choose the correct form: 'I eat' in Spanish",
+                    "options": ["Yo como", "Tú comes", "Él come", "Nosotros comemos"],
+                    "answer": "Yo como"
+                },
+                {
+                    "question": "What is the Spanish term for 'climate change'?",
+                    "options": ["Cambio climático", "Calentamiento global", "Contaminación ambiental", "Efecto invernadero"],
+                    "answer": "Cambio climático"
+                },
+                {
+                    "question": "What is a synonym of 'rápido' in Spanish?",
+                    "options": ["Lento", "Ágil", "Débil", "Fácil"],
+                    "answer": "Ágil"
+                },
+                {
+                    "question": "In Spanish, 'estar en las nubes' means:",
+                    "options": ["Ser muy alto", "Ser distraído", "Estar triste", "Estar cansado"],
+                    "answer": "Ser distraído"
+                }
+            ],
+            "Japanese": [
+                {
+                    "question": "What is 'hello' in Japanese?",
+                    "options": ["こんにちは (Konnichiwa)", "さようなら (Sayounara)", "ありがとう (Arigatou)", "お願いします (Onegaishimasu)"],
+                    "answer": "こんにちは (Konnichiwa)"
+                },
+                {
+                    "question": "How do you say 'Good morning' in Japanese?",
+                    "options": ["こんばんは (Konbanwa)", "こんにちは (Konnichiwa)", "おはようございます (Ohayou gozaimasu)", "さようなら (Sayounara)"],
+                    "answer": "おはようございます (Ohayou gozaimasu)"
+                },
+                {
+                    "question": "Choose the correct particle: わたしは日本語___ べんきょうします",
+                    "options": ["を", "に", "が", "で"],
+                    "answer": "を"
+                },
+                {
+                    "question": "What is the Japanese word for 'global warming'?",
+                    "options": ["地球温暖化 (Chikyuu Ondanka)", "気候変動 (Kikou Hendou)", "温室効果 (Onshitsu Kouka)", "大気汚染 (Taiki Osen)"],
+                    "answer": "地球温暖化 (Chikyuu Ondanka)"
+                },
+                {
+                    "question": "What is a synonym of 速い (hayai) in Japanese?",
+                    "options": ["遅い (osoi)", "早い (hayai)", "弱い (yowai)", "強い (tsuyoi)"],
+                    "answer": "早い (hayai)"
+                },
+                {
+                    "question": "In Japanese, what does '猿も木から落ちる' mean?",
+                    "options": ["Even experts make mistakes", "Monkeys are good climbers", "You should never trust monkeys", "Practice makes perfect"],
+                    "answer": "Even experts make mistakes"
+                }
+            ]
+        }
+
+        # Default to Italian if the language is not supported
+        if user_language not in fallback_quizzes:
+            user_language = "Italian"
+
+        # Get questions and return the top N
+        return fallback_quizzes[user_language][:num_questions]
