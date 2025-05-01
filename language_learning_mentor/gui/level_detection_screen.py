@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QMessageBox, QButtonGroup,
-    QSizePolicy, QSpacerItem
+    QSizePolicy, QSpacerItem, QProgressBar
 )
 from PySide6.QtCore import Signal
 
@@ -14,6 +14,7 @@ class LevelDetectionScreen(QWidget):
         self.questions = []
         self.current = 0
         self.correct_answers = 0
+        self.levels = ["Beginner", "Pre-Intermediate", "Intermediate", "Pre-Advanced", "Advanced", "Master"]
         
         # Main layout
         self.main_layout = QVBoxLayout(self)
@@ -37,9 +38,19 @@ class LevelDetectionScreen(QWidget):
         self.question_layout = QVBoxLayout()
         self.main_layout.addLayout(self.question_layout)
         
-        # Initial loading message
-        self.loading_label = QLabel("Preparing level assessment test...")
-        self.question_layout.addWidget(self.loading_label)
+        # Level label and progress bar (inizialmente vuoti, li inseriamo sotto al quiz)
+        self.level_label = QLabel("Current Level: Beginner")
+        self.level_label.setStyleSheet("font-size: 14px; font-weight: bold; margin: 10px 0;")
+        self.level_progress_bar = QProgressBar()
+        self.level_progress_bar.setRange(0, 100)
+        self.level_progress_bar.setValue(0)
+        
+        # Layout per barra livello
+        self.level_layout = QVBoxLayout()
+        self.level_layout.addWidget(self.level_label)
+        self.level_layout.addWidget(self.level_progress_bar)
+        
+        self.main_layout.addLayout(self.level_layout)
         
         # Final spacer
         self.main_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -49,6 +60,9 @@ class LevelDetectionScreen(QWidget):
         self.questions = test_data
         self.current = 0
         self.correct_answers = 0
+        
+        self.level_progress_bar.setValue(0)
+        self.level_label.setText("Current Level: Beginner")
         
         # Clear any widgets from previous questions
         self._clear_question_area()
@@ -61,7 +75,6 @@ class LevelDetectionScreen(QWidget):
     
     def _clear_question_area(self):
         """Clear the question area"""
-        # Remove all widgets from the question layout
         while self.question_layout.count():
             item = self.question_layout.takeAt(0)
             widget = item.widget()
@@ -110,6 +123,9 @@ class LevelDetectionScreen(QWidget):
         if user_answer == correct_answer:
             self.correct_answers += 1
         
+        # Update level
+        self._update_level()
+        
         # Move to next question or end the test
         self.current += 1
         if self.current < len(self.questions):
@@ -122,11 +138,42 @@ class LevelDetectionScreen(QWidget):
             )
             self.level_test_completed.emit(score)  # Emit signal with score
             self.back_requested.emit()  # Return to dashboard
+
+    
+    def _update_level(self):
+        """Update the level based on current performance"""
+        if not self.questions:
+            return
+        
+        percentage = (self.correct_answers / len(self.questions)) * 100
+        
+        # Update the progress bar
+        self.level_progress_bar.setValue(int(percentage))
+        
+        # Determine the current level
+        if percentage < 20:
+            level = self.levels[0]  # Beginner
+        elif percentage < 40:
+            level = self.levels[1]  # Pre-Intermediate
+        elif percentage < 60:
+            level = self.levels[2]  # Intermediate
+        elif percentage < 80:
+            level = self.levels[3]  # Pre-Advanced
+        elif percentage < 95:
+            level = self.levels[4]  # Advanced
+        else:
+            level = self.levels[5]  # Master
+        
+        self.level_label.setText(f"Current Level: {level}")
     
     def show_analysis_results(self, analysis_result):
         """Show analysis results"""
         self._clear_question_area()
-        
+
+        print("-"*50)
+        print(analysis_result)
+        print("-"*50)
+
         # Results header
         results_header = QLabel("Language Level Results")
         results_header.setStyleSheet("font-size: 16px; font-weight: bold; margin-top: 15px;")
@@ -157,6 +204,9 @@ class LevelDetectionScreen(QWidget):
         self.current = 0
         self.correct_answers = 0
         self._clear_question_area()
+        
+        self.level_progress_bar.setValue(0)
+        self.level_label.setText("Current Level: Beginner")
         
         # Show loading message
         self.loading_label = QLabel("Preparing level assessment test...")
