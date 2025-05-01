@@ -5,6 +5,7 @@ from crewai.project import CrewBase, agent, crew, task
 from tools.calculator import QuizCalculator
 from tools.email_sender import EmailSender
 from crew import LanguageMentor
+import os
 
 class LanguageProcessor:
     """
@@ -25,7 +26,7 @@ class LanguageProcessor:
             for key, value in input_variables.items():
                 input_text = input_text.replace(f"{{{{ {key} }}}}", str(value))
             input_variables["task"] = input_text
-            print(f"[DEBUG] Generated input from template: {input_text}")
+            #print(f"[DEBUG] Generated input from template: {input_text}")
 
         temp_crew = Crew(
             agents=[task_obj.agent],
@@ -34,10 +35,10 @@ class LanguageProcessor:
             verbose=True
         )
 
-        print(f"[DEBUG] Running task with input variables: {input_variables}")
+        #print(f"[DEBUG] Running task with input variables: {input_variables}")
         result = temp_crew.kickoff(inputs=input_variables)
 
-        print(f"[DEBUG] Raw result from Crew: {result}")
+        #print(f"[DEBUG] Raw result from Crew: {result}")
 
         return result
 
@@ -46,10 +47,6 @@ class LanguageProcessor:
         Generate a daily language learning tip using the tip_agent inside a Crew.
         """
         tip_task = self.language_crew.tip_task()
-
-        print("*"*50)
-        print(f"Generating daily tip for level: {user_level}, language: {user_language}")
-        print("*"*50)
 
         response = self._run_single_task(
             tip_task,
@@ -82,8 +79,6 @@ class LanguageProcessor:
             try:
                 quiz_data = json.loads(response)
                 # Validate quiz data structure
-                if not self._validate_quiz_data(quiz_data):
-                    raise ValueError("Invalid quiz data structure")
                 return quiz_data
             except (json.JSONDecodeError, ValueError) as e:
                 print(f"Error processing quiz data: {e}")
@@ -106,335 +101,48 @@ class LanguageProcessor:
         
         return True
 
-    def _generate_fallback_quiz(self, user_level, user_language, num_questions=5):
-        """
-        Generates a basic fallback quiz when the agent fails.
-        Uses basic language questions appropriate for the specified level and language.
-        """
-        fallback_quizzes = {
-            "Italian": {
-                "Beginner": [
-                    {
-                        "question": "What is 'hello' in Italian?",
-                        "options": ["Ciao", "Arrivederci", "Grazie", "Scusa"],
-                        "answer": "Ciao"
-                    },
-                    {
-                        "question": "What is 'thank you' in Italian?",
-                        "options": ["Per favore", "Grazie", "Scusa", "Prego"],
-                        "answer": "Grazie"
-                    },
-                    {
-                        "question": "Which is the correct translation for 'Good morning'?",
-                        "options": ["Buona sera", "Buona notte", "Buon giorno", "Buon appetito"],
-                        "answer": "Buon giorno"
-                    },
-                    {
-                        "question": "How do you say 'yes' in Italian?",
-                        "options": ["No", "Si", "Forse", "Bene"],
-                        "answer": "Si"
-                    },
-                    {
-                        "question": "What is 'please' in Italian?",
-                        "options": ["Grazie", "Prego", "Per favore", "Scusa"],
-                        "answer": "Per favore"
-                    }
-                ],
-                "Intermediate": [
-                    {
-                        "question": "Choose the correct form: 'I eat' in Italian",
-                        "options": ["Io mangio", "Tu mangi", "Lui mangia", "Noi mangiamo"],
-                        "answer": "Io mangio"
-                    },
-                    {
-                        "question": "What is the meaning of 'Che ore sono?'",
-                        "options": ["How are you?", "What time is it?", "Where is it?", "What is your name?"],
-                        "answer": "What time is it?"
-                    },
-                    {
-                        "question": "Which preposition is used in 'Vado ___ Italia'?",
-                        "options": ["a", "in", "da", "con"],
-                        "answer": "in"
-                    },
-                    {
-                        "question": "What is the Italian word for 'tomorrow'?",
-                        "options": ["Ieri", "Oggi", "Domani", "Sempre"],
-                        "answer": "Domani"
-                    },
-                    {
-                        "question": "How do you say 'I would like' in Italian?",
-                        "options": ["Io voglio", "Io vorrei", "Io posso", "Io devo"],
-                        "answer": "Io vorrei"
-                    }
-                ]
-            },
-            "Spanish": {
-                "Beginner": [
-                    {
-                        "question": "What is 'hello' in Spanish?",
-                        "options": ["Hola", "Adiós", "Gracias", "Por favor"],
-                        "answer": "Hola"
-                    },
-                    {
-                        "question": "How do you say 'thank you' in Spanish?",
-                        "options": ["Por favor", "Gracias", "Lo siento", "De nada"],
-                        "answer": "Gracias"
-                    },
-                    {
-                        "question": "What is 'Good morning' in Spanish?",
-                        "options": ["Buenas tardes", "Buenas noches", "Buenos días", "Buen provecho"],
-                        "answer": "Buenos días"
-                    },
-                    {
-                        "question": "How do you say 'yes' in Spanish?",
-                        "options": ["No", "Sí", "Tal vez", "Bien"],
-                        "answer": "Sí"
-                    },
-                    {
-                        "question": "What is 'please' in Spanish?",
-                        "options": ["Gracias", "De nada", "Por favor", "Lo siento"],
-                        "answer": "Por favor"
-                    }
-                ],
-                "Intermediate": [
-                    {
-                        "question": "Choose the correct form: 'I eat' in Spanish",
-                        "options": ["Yo como", "Tú comes", "Él come", "Nosotros comemos"],
-                        "answer": "Yo como"
-                    },
-                    {
-                        "question": "What is the meaning of '¿Qué hora es?'",
-                        "options": ["How are you?", "What time is it?", "Where is it?", "What is your name?"],
-                        "answer": "What time is it?"
-                    },
-                    {
-                        "question": "Which preposition is used in 'Voy ___ España'?",
-                        "options": ["a", "en", "de", "con"],
-                        "answer": "a"
-                    },
-                    {
-                        "question": "What is the Spanish word for 'tomorrow'?",
-                        "options": ["Ayer", "Hoy", "Mañana", "Siempre"],
-                        "answer": "Mañana"
-                    },
-                    {
-                        "question": "How do you say 'I would like' in Spanish?",
-                        "options": ["Yo quiero", "Yo quisiera", "Yo puedo", "Yo debo"],
-                        "answer": "Yo quisiera"
-                    }
-                ]
-            },
-            "Japanese": {
-                "Beginner": [
-                    {
-                        "question": "What is 'hello' in Japanese?",
-                        "options": ["こんにちは (Konnichiwa)", "さようなら (Sayounara)", "ありがとう (Arigatou)", "お願いします (Onegaishimasu)"],
-                        "answer": "こんにちは (Konnichiwa)"
-                    },
-                    {
-                        "question": "How do you say 'thank you' in Japanese?",
-                        "options": ["お願いします (Onegaishimasu)", "ありがとう (Arigatou)", "すみません (Sumimasen)", "どういたしまして (Douitashimashite)"],
-                        "answer": "ありがとう (Arigatou)"
-                    },
-                    {
-                        "question": "What is 'Good morning' in Japanese?",
-                        "options": ["こんにちは (Konnichiwa)", "こんばんは (Konbanwa)", "おはようございます (Ohayou gozaimasu)", "おやすみなさい (Oyasuminasai)"],
-                        "answer": "おはようございます (Ohayou gozaimasu)"
-                    },
-                    {
-                        "question": "How do you say 'yes' in Japanese?",
-                        "options": ["いいえ (Iie)", "はい (Hai)", "たぶん (Tabun)", "よくない (Yokunai)"],
-                        "answer": "はい (Hai)"
-                    },
-                    {
-                        "question": "What is 'please' in Japanese?",
-                        "options": ["ありがとう (Arigatou)", "どういたしまして (Douitashimashite)", "お願いします (Onegaishimasu)", "すみません (Sumimasen)"],
-                        "answer": "お願いします (Onegaishimasu)"
-                    }
-                ],
-                "Intermediate": [
-                    {
-                        "question": "Choose the correct particle: わたしは日本語___ べんきょうします",
-                        "options": ["を", "に", "が", "で"],
-                        "answer": "を"
-                    },
-                    {
-                        "question": "What is the meaning of '今何時ですか？'",
-                        "options": ["How are you?", "What time is it?", "Where is it?", "What is your name?"],
-                        "answer": "What time is it?"
-                    },
-                    {
-                        "question": "Which is the correct way to say 'I went to Japan'?",
-                        "options": ["日本に行きます", "日本に行きました", "日本で行きます", "日本で行きました"],
-                        "answer": "日本に行きました"
-                    },
-                    {
-                        "question": "What is the Japanese word for 'tomorrow'?",
-                        "options": ["昨日 (Kinou)", "今日 (Kyou)", "明日 (Ashita)", "毎日 (Mainichi)"],
-                        "answer": "明日 (Ashita)"
-                    },
-                    {
-                        "question": "How do you say 'I would like' in polite Japanese?",
-                        "options": ["ほしいです (Hoshii desu)", "～たいです (~tai desu)", "～ほうがいいです (~hou ga ii desu)", "～いただけませんか (~itadakemasen ka)"],
-                        "answer": "～たいです (~tai desu)"
-                    }
-                ]
-            }
-        }
-        
-        # Default level if provided level not found
-        if user_level not in ["Beginner", "Intermediate", "Advanced", "Proficient", "Master"]:
-            user_level = "Beginner"
-        
-        # Fallback to Beginner for Advanced/Proficient/Master as they're not in our basic fallback
-        if user_level not in ["Beginner", "Intermediate"]:
-            user_level = "Intermediate"
-        
-        # Default language if provided language not found
-        if user_language not in fallback_quizzes:
-            user_language = "Italian"  # Default to Italian
-        
-        # Get the quiz for specified language and level
-        quiz = fallback_quizzes[user_language][user_level]
-        
-        # Trim to requested number of questions
-        return quiz[:num_questions]
-
-    def prepare_detect_quiz(self, user_language: str) -> dict:
+    def prepare_detect_quiz(self, user_level: str, user_language: str) -> list:
         """
         Analyze language proficiency using the level_detector agent inside a Crew.
+        Returns a list of formatted quiz questions.
         """
+        import json  # assicurati che ci sia
+
         level_task = self.language_crew.level_task()
-        
+
         try:
             response = self._run_single_task(
                 level_task,
                 input_variables={
+                    "user_level": user_level,
                     "language": user_language,
-                    "task": "Create a language quiz to detect the user's level"
+                    "task": f"Create a language quiz to detect the user's level in the target language: {user_language}. You must use the target language in the questions and answers."
                 }
             )
 
-            try:
-                quiz_data = json.loads(response)
-                # Validate quiz data structure
-                if not self._validate_quiz_data(quiz_data):
-                    raise ValueError("Invalid quiz data structure")
-                return quiz_data
-            except (json.JSONDecodeError, ValueError) as e:
-                print(f"Error processing quiz data: {e}")
-                return self._generate_fallback_detect_quiz(user_language)
+            filepath = os.path.abspath("level_assessment.json")
+            with open(filepath, 'r', encoding='utf-8') as file:
+                response_dict = json.load(file)
+
+            if isinstance(response_dict, dict):
+                formatted_questions = [{
+                    "question": response_dict.get("sentence", ""),
+                    "options": response_dict.get("options", []),
+                    "answer": response_dict.get("correct_answer", "")
+                }]
+            else:
+                # Se è già una lista, mapparla al formato corretto
+                formatted_questions = []
+                for q in response_dict:
+                    formatted_questions.append({
+                        "question": q.get("sentence", ""),
+                        "options": q.get("options", []),
+                        "answer": q.get("correct_answer", "")
+                    })
+
+            return formatted_questions
         except Exception as e:
             print(f"Error calling quiz agent: {e}")
-            return self._generate_fallback_detect_quiz(user_language)
+            return []
         
-    def _generate_fallback_detect_quiz(self, user_language, num_questions=6):
-        """
-        Generates a fallback quiz with generic questions for the specified language.
-        Each language has a fixed set of diverse difficulty questions (no level labels).
-        """
-        fallback_quizzes = {
-            "Italian": [
-                {
-                    "question": "What is 'hello' in Italian?",
-                    "options": ["Ciao", "Arrivederci", "Grazie", "Scusa"],
-                    "answer": "Ciao"
-                },
-                {
-                    "question": "What is the correct translation for 'Good morning'?",
-                    "options": ["Buona sera", "Buona notte", "Buongiorno", "Buon appetito"],
-                    "answer": "Buongiorno"
-                },
-                {
-                    "question": "Choose the correct form: 'I eat' in Italian",
-                    "options": ["Io mangio", "Tu mangi", "Lui mangia", "Noi mangiamo"],
-                    "answer": "Io mangio"
-                },
-                {
-                    "question": "What is the Italian term for 'environmental sustainability'?",
-                    "options": ["Sostenibilità ambientale", "Energia rinnovabile", "Risparmio energetico", "Impatto ambientale"],
-                    "answer": "Sostenibilità ambientale"
-                },
-                {
-                    "question": "What is a synonym of 'velocemente' in Italian?",
-                    "options": ["Lentamente", "Rapidamente", "Tranquillamente", "Facilmente"],
-                    "answer": "Rapidamente"
-                },
-                {
-                    "question": "In Italian, 'piantare in asso' means:",
-                    "options": ["Abbandonare qualcuno", "Iniziare un progetto", "Aiutare una persona", "Fare pace"],
-                    "answer": "Abbandonare qualcuno"
-                }
-            ],
-            "Spanish": [
-                {
-                    "question": "What is 'hello' in Spanish?",
-                    "options": ["Hola", "Adiós", "Gracias", "Por favor"],
-                    "answer": "Hola"
-                },
-                {
-                    "question": "What is the correct translation for 'Good morning'?",
-                    "options": ["Buenas tardes", "Buenas noches", "Buenos días", "Buen provecho"],
-                    "answer": "Buenos días"
-                },
-                {
-                    "question": "Choose the correct form: 'I eat' in Spanish",
-                    "options": ["Yo como", "Tú comes", "Él come", "Nosotros comemos"],
-                    "answer": "Yo como"
-                },
-                {
-                    "question": "What is the Spanish term for 'climate change'?",
-                    "options": ["Cambio climático", "Calentamiento global", "Contaminación ambiental", "Efecto invernadero"],
-                    "answer": "Cambio climático"
-                },
-                {
-                    "question": "What is a synonym of 'rápido' in Spanish?",
-                    "options": ["Lento", "Ágil", "Débil", "Fácil"],
-                    "answer": "Ágil"
-                },
-                {
-                    "question": "In Spanish, 'estar en las nubes' means:",
-                    "options": ["Ser muy alto", "Ser distraído", "Estar triste", "Estar cansado"],
-                    "answer": "Ser distraído"
-                }
-            ],
-            "Japanese": [
-                {
-                    "question": "What is 'hello' in Japanese?",
-                    "options": ["こんにちは (Konnichiwa)", "さようなら (Sayounara)", "ありがとう (Arigatou)", "お願いします (Onegaishimasu)"],
-                    "answer": "こんにちは (Konnichiwa)"
-                },
-                {
-                    "question": "How do you say 'Good morning' in Japanese?",
-                    "options": ["こんばんは (Konbanwa)", "こんにちは (Konnichiwa)", "おはようございます (Ohayou gozaimasu)", "さようなら (Sayounara)"],
-                    "answer": "おはようございます (Ohayou gozaimasu)"
-                },
-                {
-                    "question": "Choose the correct particle: わたしは日本語___ べんきょうします",
-                    "options": ["を", "に", "が", "で"],
-                    "answer": "を"
-                },
-                {
-                    "question": "What is the Japanese word for 'global warming'?",
-                    "options": ["地球温暖化 (Chikyuu Ondanka)", "気候変動 (Kikou Hendou)", "温室効果 (Onshitsu Kouka)", "大気汚染 (Taiki Osen)"],
-                    "answer": "地球温暖化 (Chikyuu Ondanka)"
-                },
-                {
-                    "question": "What is a synonym of 速い (hayai) in Japanese?",
-                    "options": ["遅い (osoi)", "早い (hayai)", "弱い (yowai)", "強い (tsuyoi)"],
-                    "answer": "早い (hayai)"
-                },
-                {
-                    "question": "In Japanese, what does '猿も木から落ちる' mean?",
-                    "options": ["Even experts make mistakes", "Monkeys are good climbers", "You should never trust monkeys", "Practice makes perfect"],
-                    "answer": "Even experts make mistakes"
-                }
-            ]
-        }
-
-        # Default to Italian if the language is not supported
-        if user_language not in fallback_quizzes:
-            user_language = "Italian"
-
-        # Get questions and return the top N
-        return fallback_quizzes[user_language][:num_questions]
+             

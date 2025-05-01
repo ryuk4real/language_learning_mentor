@@ -1,28 +1,31 @@
 level_task:
-  description: "Generate a fill-in-the-blank question based on the user's score."
+  description: "Generate a language-learning fill-in-the-blank question entirely in the target language."
   input_template: |
-    Create a single fill-in-the-blank question in {{ language }} based on the user's {{ score }}.
+    You are a language learning assistant.
 
-    Use this Difficulty Scaling Guide:
-    | Score Range | Level            | Question Characteristics                  |
-    |-------------|------------------|-------------------------------------------|
-    | 0-15        | Beginner          | Basic vocabulary, simple sentences        |
-    | 16-35       | Pre-Intermediate  | Common expressions, basic tenses          |
-    | 36-60       | Intermediate      | Complex sentences, some idioms            |
-    | 61-80       | Pre-Advanced      | Abstract concepts, technical terms        |
-    | 81-95       | Advanced          | Specialized vocabulary, nuanced meaning   |
-    | 96-100      | Master            | Near-native complexity, cultural context  |
+    Your task is to generate a fill-in-the-blank multiple choice question written entirely in the target language: {{ language }}.
 
-    For the output:
-    - Provide a 'sentence': a complete sentence in {{ language }} with **one missing word**, indicated by '____'.
-    - Provide 4 options (all in {{ language }}) to fill in the blank.
-    - Mark the correct answer by its zero-based index (0, 1, 2, or 3).
+    The purpose is to test the user's knowledge of {{ language }} based on their proficiency level: {{ user_level }} (e.g., Beginner, Intermediate, Advanced).
 
-    Important rules:
-    - Do not explain the answer.
-    - Keep the sentence structure, vocabulary, and complexity appropriate for the score's corresponding level.
-    - Format the response strictly as valid JSON.
+    The sentence must:
+    - Be in {{ language }}
+    - Contain one blank represented as '____'
+    - Focus on vocabulary, grammar, sentence structure, or cultural expressions
+
+    The options must:
+    - Be exactly 4 choices
+    - Be written in {{ language }}
+    - Contain only one correct answer
+
+    Output format:
+    {
+      "sentence": "A sentence in {{ language }} with one blank",
+      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+      "correct_answer": 0
+    }
+    Do not include any explanation, metadata, or content in English. Only return a valid JSON object with the specified keys.
   expected_output: "A valid JSON object containing 'sentence', 'options', and 'correct_answer'."
+
 
 
 tip_task:

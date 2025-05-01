@@ -223,8 +223,6 @@ class AppController(QObject):
             self.tip_generated.emit(f"Error: {e}")
             self.status_message.emit("Error generating tip.")
 
-
-
     def start_quiz(self):
         """Initiates the process of starting a quiz."""
         if not self._language:
@@ -299,8 +297,20 @@ class AppController(QObject):
     def _run_level_test_task(self):
         """Helper method to prepare level test data in a thread."""
         try:
-            test = self.lang_processor.prepare_detect_quiz(self._language)
+            test = self.lang_processor.prepare_detect_quiz(self._level, self._language)
+            
+            for i, question in enumerate(test):
+                if not all(key in question for key in ["question", "options", "answer"]):
+                    test[i] = {
+                        "question": question.get("question", f"Malformed question {i}"),
+                        "options": question.get("options", ["Option A", "Option B"]),
+                        "answer": question.get("answer", "Option A")
+                    }
+            
             self.level_test_data_ready.emit(test)
-            self.status_message.emit("Analysis complete.")
+            self.status_message.emit("Level test ready.")
         except Exception as e:
-            self.status_message.emit(f"Error analyzing proficiency: {e}")
+            import traceback
+            print(f"[DEBUG] Error in level test task: {e}")
+            traceback.print_exc()
+            self.status_message.emit(f"Error preparing level test: {e}")
