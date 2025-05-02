@@ -137,7 +137,7 @@ class AppController(QObject):
             self.status_message.emit("Error: No user logged in to select language.")
             return False
 
-        if selected_language not in ['Italian', 'Japanese', 'Spanish']:
+        if selected_language not in ['Italian', 'French', 'Spanish']:
             self.status_message.emit(f"Error: Invalid language selected: {selected_language}")
             return False
 

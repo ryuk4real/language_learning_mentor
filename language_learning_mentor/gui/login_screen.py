@@ -13,10 +13,10 @@ from PySide6.QtCore import Qt, Signal, QSize # QObject is implicitly inherited b
 
 
 # --- Language and Emoji Definitions ---
-LANGUAGES = ['Italian', 'Japanese', 'Spanish'] # Use capitalized names for display
+LANGUAGES = ['Italian', 'French', 'Spanish'] # Use capitalized names for display
 LANGUAGE_EMOJIS = {
     'Italian': '🇮🇹',
-    'Japanese': '🇯🇵',
+    'French': '🇫🇷',
     'Spanish': '🇪🇸',
     # Add other languages/emojis here if needed, but keep LANGUAGES list updated
 }
