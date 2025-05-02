@@ -33,10 +33,11 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         self.main_layout.addWidget(self.stacked_widget)
 
         # Create UI screens and add them to the stacked widget
+        # --- Screens -----------------------------------------------------------
         self.login_screen = LoginScreen()
         self.dashboard_screen = DashboardScreen()
-        self.quiz_screen = QuizScreen()  # Nuova schermata per il quiz
-        self.level_detection_screen = LevelDetectionScreen()  # Nuova schermata per il rilevatore di livello
+        self.quiz_screen = QuizScreen()
+        self.level_detection_screen = LevelDetectionScreen(self.controller)
 
         self.stacked_widget.addWidget(self.login_screen)         # Index 0
         self.stacked_widget.addWidget(self.dashboard_screen)     # Index 1
@@ -78,6 +79,9 @@ class MainWindow(QWidget): # Or QMainWindow if you need menus, toolbars, status 
         self.controller.analysis_complete.connect(self.level_detection_screen.show_analysis_results)
         self.controller.quiz_data_ready.connect(self.quiz_screen.start_quiz)
         self.controller.analysis_complete.connect(self.level_detection_screen.show_analysis_results)
+
+        self.level_detection_screen.level_test_completed.connect(
+            self.controller.process_level_test_results)
 
         # --- Initial Setup ---
         # Show the login screen initially

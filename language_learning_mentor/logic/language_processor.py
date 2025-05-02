@@ -27,7 +27,9 @@ class LanguageProcessor:
                 input_text = input_text.replace(f"{{{{ {key} }}}}", str(value))
             input_variables["task"] = input_text
             #print(f"[DEBUG] Generated input from template: {input_text}")
+            task_obj.description = input_text
 
+        # Crea una Crew temporanea con l'agente e il task specificato
         temp_crew = Crew(
             agents=[task_obj.agent],
             tasks=[task_obj],

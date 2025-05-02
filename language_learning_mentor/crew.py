@@ -74,18 +74,39 @@ class LanguageMentor():
             )
 
     @agent
+    @agent
     def level_detector(self) -> Agent:
         cfg = self.agents_config['level_detector']
-        llm = self._make_groq_llm(cfg)
+
+        # prompt extra minimalista che fissa formato e lingua
+        extra_prompt = """
+            You are the Level‑Assessment Agent.
+
+            Generate ONE fill‑in‑the‑blank multiple‑choice sentence **entirely in {{ language }}**,
+            appropriate for a {{ user_level }} learner.
+
+            Return **only**:
+            {
+              "question": "...",
+              "options": ["...", "...", "...", "..."],
+              "answer": 0            # zero‑based index
+            }
+            No comments, no markdown.
+        """
+
+        llm = self._make_groq_llm(
+            cfg,
+            extra_system_message=extra_prompt,
+            with_action_structure=False)  # ⬅️  disattiva la struttura
+
         return Agent(
             role=cfg['role'],
             goal=cfg['goal'],
             backstory=cfg['backstory'],
             llm=llm,
-            tools=[QuizCalculator()],
+            tools=[],  # ⬅️  niente QuizCalculator: non serve
             verbose=True
         )
-
 
     @agent
     def tip_agent(self) -> Agent:

@@ -1,1 +1,5 @@
-{"sentence": "The company _______ a new product last year.", "options": ["released", "has been", "was", "were"], "correct_answer": "released"}
+{
+  "question": "Me gusta leer un libro antes de ____ a dormir",
+  "options": ["ir", "volver", "acostar", "dormir"],
+  "answer": 0
+}

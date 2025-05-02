@@ -314,3 +314,25 @@ class AppController(QObject):
             print(f"[DEBUG] Error in level test task: {e}")
             traceback.print_exc()
             self.status_message.emit(f"Error preparing level test: {e}")
+
+    # -------------------------------------------------- NEW
+    def process_level_test_results(self, score: int):
+        """
+        Riceve lo score (0–5) dal LevelDetectionScreen e aggiorna la
+        proprietà `self._level` di conseguenza.
+        """
+        # mappa lineare 0‑5 → percentuale
+        percentage = (score / 5) * 100
+        if   percentage < 20: new_level = "Beginner"
+        elif percentage < 40: new_level = "Pre-Intermediate"
+        elif percentage < 60: new_level = "Intermediate"
+        elif percentage < 80: new_level = "Pre-Advanced"
+        elif percentage < 95: new_level = "Advanced"
+        else:                 new_level = "Master"
+
+        if new_level != self._level:
+            self._level = new_level
+            self.save_user_state()
+            self.update_user_state_and_notify()
+            self.status_message.emit(
+                f"Your assessed level is now **{new_level}**. Content difficulty has been adjusted!")

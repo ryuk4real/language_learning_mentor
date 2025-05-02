@@ -12,54 +12,55 @@ class LevelDetectionScreen(QWidget):
     level_test_completed = Signal(int)  # Signal emitted when test is completed, with score
     analyze_requested = Signal(str)  # Signal to request analysis of user's text
     
-    def __init__(self, parent=None):
+    def __init__(self, controller: AppController, parent=None):
         super().__init__(parent)
-        self.questions = []
-        self.current = 0
-        self.correct_answers = 0
-        self.controller = AppController()
+
+        self.controller = controller          # ← usa sempre questo
         self.controller.level_test_data_ready.connect(self.start_test)
-        self.levels = ["Beginner", "Pre-Intermediate", "Intermediate", "Pre-Advanced", "Advanced", "Master"]
-        
-        # Main layout
+
+        self.questions        = []
+        self.current          = 0
+        self.correct_answers  = 0
+        self.levels = ["Beginner", "Pre-Intermediate",
+                       "Intermediate", "Pre-Advanced",
+                       "Advanced", "Master"]
+
+        # --- UI ---------------------------------------------------------
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(15, 15, 15, 15)
-        
-        # Header
+
         header_layout = QHBoxLayout()
         self.title_label = QLabel("Language Level Test")
         self.title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(self.title_label)
-        
         header_layout.addStretch()
-        
+
         self.back_button = QPushButton("Return to Dashboard")
         self.back_button.clicked.connect(self.back_requested.emit)
         header_layout.addWidget(self.back_button)
-        
+
         self.main_layout.addLayout(header_layout)
-        
-        # Question area (initially empty)
+
         self.question_layout = QVBoxLayout()
         self.main_layout.addLayout(self.question_layout)
-        
-        # Level label and progress bar (inizialmente vuoti, li inseriamo sotto al quiz)
+
+        # Barra livello
         self.level_label = QLabel("Current Level: Beginner")
-        self.level_label.setStyleSheet("font-size: 14px; font-weight: bold; margin: 10px 0;")
+        self.level_label.setStyleSheet(
+            "font-size: 14px; font-weight: bold; margin: 10px 0;")
         self.level_progress_bar = QProgressBar()
         self.level_progress_bar.setRange(0, 100)
         self.level_progress_bar.setValue(0)
-        
-        # Layout per barra livello
-        self.level_layout = QVBoxLayout()
-        self.level_layout.addWidget(self.level_label)
-        self.level_layout.addWidget(self.level_progress_bar)
-        
-        self.main_layout.addLayout(self.level_layout)
-        
-        # Final spacer
-        self.main_layout.addItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
-    
+
+        lvl_box = QVBoxLayout()
+        lvl_box.addWidget(self.level_label)
+        lvl_box.addWidget(self.level_progress_bar)
+        self.main_layout.addLayout(lvl_box)
+
+        self.main_layout.addItem(
+            QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+
     def start_test(self, question_data):
         """Start with the first received question"""
         if self.current == 0:
@@ -120,10 +121,18 @@ class LevelDetectionScreen(QWidget):
 
         correct_answer = self.questions[0]["answer"]
         user_answer = selected[0].text()
-        
-        if user_answer == correct_answer:
+
+
+        ##if user_answer == correct_answer:
+        ##    self.correct_answers += 1
+
+
+        correct_idx = self.questions[0]["answer"]  # int
+        correct_text = self.questions[0]["options"][correct_idx]
+
+        if user_answer == correct_text:
             self.correct_answers += 1
-        
+
         self._update_level()
         
         if self.current < 5:  # Totale 5 domande
