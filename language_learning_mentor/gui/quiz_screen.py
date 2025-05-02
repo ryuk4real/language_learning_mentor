@@ -158,12 +158,13 @@ class QuizScreen(QWidget):
         self.current += 1
         if self.current < len(self.questions):
             self._show_current_question()
-            self.questions = []
         else:
             score = self.correct_answers
             QMessageBox.information(
                 self, "Fine Quiz", 
                 f"Hai completato il quiz!\nPunteggio: {score}/{len(self.questions)}"
             )
+            self.questions = []
+            self.current = 0
             self.quiz_completed.emit(score * 10)  # Emetti segnale con punteggio (10 EXP per risposta corretta)
             self.back_requested.emit()  # Torna alla dashboard

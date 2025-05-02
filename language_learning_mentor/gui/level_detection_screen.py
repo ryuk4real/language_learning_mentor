@@ -145,6 +145,8 @@ class LevelDetectionScreen(QWidget):
                 self, "Test Complete", 
                 f"You've completed the level assessment test!\nScore: {score}/5"
             )
+            self.questions = []
+            self.current = 0
             self.level_test_completed.emit(score) 
             self.back_requested.emit() 
 
