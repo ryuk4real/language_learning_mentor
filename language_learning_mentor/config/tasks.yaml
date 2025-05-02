@@ -62,7 +62,7 @@ quiz_task:
     For each question in each quiz:
     - Provide a 'sentence': a complete sentence in {{ language }} with **one missing word**, indicated by '____'.
     - Provide 4 options (all in {{ language }}) to fill in the blank.
-    - Mark the correct answer by its zero-based index (0, 1, 2, or 3).
+    - Indicate the correct answer.
 
     The quizzes must match the {{ user_level }} according to these guidelines:
     | Level            | Characteristics                                 |
@@ -80,4 +80,13 @@ quiz_task:
     - Format the response strictly as valid JSON.
     - The JSON must contain exactly {{ num_quizzes }} arrays, each array containing {{ num_questions }} question objects.
     !!! IMPORTANT: The output MUST be a raw JSON string only. Do NOT include any formatting such as ```json blocks, titles, or explanations. !!!
-  expected_output: "A valid JSON array containing {{ num_quizzes }} arrays, each with {{ num_questions }} questions, where each question has 'question', 'options', and 'answer'."
+    !!! IMPORTANT: The output must follow this structure exactly, with no extra text or formatting. !!!
+    [
+      {
+        "question": "",
+        "options": [],
+        "answer": ""
+      },
+      other questions...
+    ]
+  expected_output: "A valid flat JSON array containing all questions (total = num_questions), each with 'question', 'options', and 'answer'."

@@ -138,6 +138,7 @@ class LevelDetectionScreen(QWidget):
         if self.current < 5:  # Totale 5 domande
             threading.Thread(target=self.controller._run_level_test_task, daemon=True).start()
             self._clear_question_area()
+            self.questions = []
         else:
             score = self.correct_answers
             QMessageBox.information(

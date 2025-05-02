@@ -158,6 +158,7 @@ class QuizScreen(QWidget):
         self.current += 1
         if self.current < len(self.questions):
             self._show_current_question()
+            self.questions = []
         else:
             score = self.correct_answers
             QMessageBox.information(
