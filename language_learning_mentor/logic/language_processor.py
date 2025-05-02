@@ -64,42 +64,28 @@ class LanguageProcessor:
         If agent fails, return a basic fallback quiz.
         """
         quiz_task = self.language_crew.quiz_task()
-        
+        questions = []
+
         try:
-            response = self._run_single_task(
+            self._run_single_task(
                 quiz_task,
                 input_variables={
                     "user_level": user_level,
                     "language": user_language,
                     "num_questions": num_questions,
-                    "task": "Create a language quiz"
+                    "task": f"Create a language quiz in the target language: {user_language}. Based on the user's level: {user_level}. The quiz should contain {num_questions} questions. Use the target language in the questions and answers."
                 }
             )
 
-            try:
-                quiz_data = json.loads(response)
-                # Validate quiz data structure
-                return quiz_data
-            except (json.JSONDecodeError, ValueError) as e:
-                print(f"Error processing quiz data: {e}")
-                return self._generate_fallback_quiz(user_level, user_language, num_questions)
+            filepath = os.path.abspath("quizzes.json")
+            with open(filepath, 'r', encoding='utf-8') as file:
+                raw_quizzes = json.load(file)
+            return raw_quizzes
+
         except Exception as e:
             print(f"Error calling quiz agent: {e}")
-            return self._generate_fallback_quiz(user_level, user_language, num_questions)
+            return questions  
 
-    def _validate_quiz_data(self, quiz_data):
-        """Validates that quiz data has the expected structure"""
-        if not isinstance(quiz_data, list) or len(quiz_data) == 0:
-            return False
-        
-        for question in quiz_data:
-            # Check each question has required fields
-            if not all(key in question for key in ["question", "options", "answer"]):
-                return False
-            if not isinstance(question["options"], list) or len(question["options"]) == 0:
-                return False
-        
-        return True
 
     def prepare_detect_quiz(self, user_level: str, user_language: str) -> list:
         """
@@ -109,6 +95,7 @@ class LanguageProcessor:
         import json  # assicurati che ci sia
 
         level_task = self.language_crew.level_task()
+        senteces = []
 
         try:
             response = self._run_single_task(
@@ -122,27 +109,12 @@ class LanguageProcessor:
 
             filepath = os.path.abspath("level_assessment.json")
             with open(filepath, 'r', encoding='utf-8') as file:
-                response_dict = json.load(file)
-
-            if isinstance(response_dict, dict):
-                formatted_questions = [{
-                    "question": response_dict.get("sentence", ""),
-                    "options": response_dict.get("options", []),
-                    "answer": response_dict.get("correct_answer", "")
-                }]
-            else:
-                # Se è già una lista, mapparla al formato corretto
-                formatted_questions = []
-                for q in response_dict:
-                    formatted_questions.append({
-                        "question": q.get("sentence", ""),
-                        "options": q.get("options", []),
-                        "answer": q.get("correct_answer", "")
-                    })
-
-            return formatted_questions
+                sentences = json.load(file)
+                if isinstance(sentences, dict):
+                    sentences = [sentences]
+                return sentences
         except Exception as e:
             print(f"Error calling quiz agent: {e}")
-            return []
+            return senteces
         
              

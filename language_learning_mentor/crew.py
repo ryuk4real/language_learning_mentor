@@ -182,7 +182,7 @@ class LanguageMentor():
             description=task_cfg['description'],
             expected_output=task_cfg['expected_output'],
             agent=self.quiz_agent(),
-            output_file='quiz_score.md'
+            output_file='quizzes.json'
         )
         self.task_templates[t.description] = task_cfg.get('input_template')
         return t

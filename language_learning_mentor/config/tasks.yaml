@@ -19,12 +19,13 @@ level_task:
 
     Output format:
     {
-      "sentence": "A sentence in {{ language }} with one blank",
+      "question": "A sentence in {{ language }} with one blank",
       "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-      "correct_answer": 0
+      "answer": 0
     }
     Do not include any explanation, metadata, or content in English. Only return a valid JSON object with the specified keys.
-  expected_output: "A valid JSON object containing 'sentence', 'options', and 'correct_answer'."
+    DO NOT ENUMERATE THE OPTIONS, just provide them in the array.
+  expected_output: "A valid JSON object containing 'question', 'options', and 'answer'."
 
 
 
@@ -78,7 +79,5 @@ quiz_task:
     - Keep the language, sentence structure, and vocabulary appropriate for the {{ user_level }}.
     - Format the response strictly as valid JSON.
     - The JSON must contain exactly {{ num_quizzes }} arrays, each array containing {{ num_questions }} question objects.
-  expected_output: "A valid JSON array containing {{ num_quizzes }} arrays, each with {{ num_questions }} questions, where each question has 'sentence', 'options', and 'correct_answer'."
-
-
-
+    !!! IMPORTANT: The output MUST be a raw JSON string only. Do NOT include any formatting such as ```json blocks, titles, or explanations. !!!
+  expected_output: "A valid JSON array containing {{ num_quizzes }} arrays, each with {{ num_questions }} questions, where each question has 'question', 'options', and 'answer'."
