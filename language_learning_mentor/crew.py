@@ -83,7 +83,7 @@ class LanguageMentor():
             You are the Level‑Assessment Agent.
 
             Generate ONE fill‑in‑the‑blank multiple‑choice sentence **entirely in {{ language }}**,
-            appropriate for a {{ user_level }} learner.
+            appropriate for a {{ user_level }} learner. ALWAYS use latin characters and romanization.
 
             Return **only**:
             {
